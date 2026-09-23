@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PPGComp — Avaliação Docente</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, Helvetica, sans-serif;
+            background: #f4f6f8;
+            color: #1f2937;
+        }
+
+        header {
+            background: #1f4e78;
+            color: white;
+            padding: 24px 32px;
+        }
+
+        header h1 {
+            margin: 0 0 6px 0;
+            font-size: 26px;
+        }
+
+        header p {
+            margin: 0;
+        }
+
+        main {
+            max-width: 1400px;
+            margin: 30px auto;
+            padding: 0 24px;
+        }
+
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 18px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 22px;
+            box-shadow: 0 2px 8px rgba(0,0,0,.08);
+        }
+
+        .card-label {
+            font-size: 14px;
+            color: #6b7280;
+            margin-bottom: 8px;
+        }
+
+        .card-value {
+            font-size: 30px;
+            font-weight: bold;
+            color: #1f4e78;
+        }
+
+        .section {
+            background: white;
+            border-radius: 10px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,.08);
+            overflow-x: auto;
+        }
+
+        .section h2 {
+            margin-top: 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        th, td {
+            padding: 11px 10px;
+            border-bottom: 1px solid #e5e7eb;
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        th {
+            background: #eef3f7;
+        }
+
+        th:first-child,
+        td:first-child {
+            text-align: left;
+        }
+
+        .atende {
+            color: #15803d;
+            font-weight: bold;
+        }
+
+        .nao-atende {
+            color: #b91c1c;
+            font-weight: bold;
+        }
+
+        @media (max-width: 900px) {
+            .cards {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 600px) {
+            .cards {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+    <h1>PPGComp — Avaliação Docente</h1>
+    <p>
+        Produção científica e pontuação Qualis —
+        {{ data.configuracao.reference_year }}
+    </p>
+</header>
+
+<main>
+
+    <div class="cards">
+
+        <div class="card">
+            <div class="card-label">Professores</div>
+            <div class="card-value">{{ data.professors | length }}</div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Publicações distintas</div>
+            <div class="card-value">{{ data.publications | length }}</div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Registros de coautoria</div>
+            <div class="card-value">
+                {{ data.coauthorships.values() | map('length') | sum }}
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-label">Pendências</div>
+            <div class="card-value">{{ data.pending | length }}</div>
+        </div>
+
+    </div>
+
+    <div class="section">
+
+        <h2>Professores</h2>
+
+        <table>
+
+            <thead>
+                <tr>
+                    <th>Professor</th>
+                    <th>Atualização Lattes</th>
+                    <th>A1</th>
+                    <th>A2</th>
+                    <th>A3</th>
+                    <th>A4</th>
+                    <th>B1</th>
+                    <th>B2</th>
+                    <th>B3</th>
+                    <th>B4</th>
+                    <th>C</th>
+                    <th>Total</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+
+            <tbody>
+
+            {% for professor in data.professors.values() | sort(attribute='professor') %}
+
+                <tr>
+                    <td>{{ professor.professor }}</td>
+                    <td>{{ professor.lattes_update }}</td>
+
+                    <td>{{ professor.counts.A1 }}</td>
+                    <td>{{ professor.counts.A2 }}</td>
+                    <td>{{ professor.counts.A3 }}</td>
+                    <td>{{ professor.counts.A4 }}</td>
+                    <td>{{ professor.counts.B1 }}</td>
+                    <td>{{ professor.counts.B2 }}</td>
+                    <td>{{ professor.counts.B3 }}</td>
+                    <td>{{ professor.counts.B4 }}</td>
+                    <td>{{ professor.counts.C }}</td>
+
+                    <td>
+                        <strong>
+                            {{ "%.3f"|format(professor.total) }}
+                        </strong>
+                    </td>
+
+                    <td class="{% if professor.status == 'ATENDE' %}atende{% else %}nao-atende{% endif %}">
+                        {{ professor.status }}
+                    </td>
+                </tr>
+
+            {% endfor %}
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+</main>
+
+</body>
+</html>
