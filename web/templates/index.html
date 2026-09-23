@@ -1,11 +1,19 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
+
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Avaliação PPGComp {{ data.configuracao.reference_year }}</title>
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Avaliação PPGComp</title>
 
     <style>
+
         :root {
             --bg: #f5f7fb;
             --card: #ffffff;
@@ -48,6 +56,92 @@
             max-width: 1500px;
             margin: 30px auto;
             padding: 0 24px;
+        }
+
+        .config-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 18px 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        .config-title {
+            font-weight: bold;
+            margin-bottom: 14px;
+        }
+
+        .config-row {
+            display: flex;
+            gap: 14px;
+            align-items: end;
+            flex-wrap: wrap;
+        }
+
+        .config-field {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .config-field label {
+            font-size: 12px;
+            color: var(--muted);
+            font-weight: bold;
+        }
+
+        .config-field input {
+            width: 120px;
+        }
+
+        .config-field.days input {
+            width: 170px;
+        }
+
+        .config-field.score input {
+            width: 140px;
+        }
+
+        button {
+            padding: 11px 18px;
+            border: 0;
+            border-radius: 8px;
+            background: var(--primary);
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: wait;
+        }
+
+        #exportExcelButton {
+            background: var(--success);
+        }
+
+        .config-status {
+            margin-top: 12px;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .legend {
+            margin-top: 10px;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .legend-red {
+            color: var(--danger);
+            font-weight: bold;
         }
 
         .cards {
@@ -192,9 +286,25 @@
             color: var(--danger);
         }
 
+        .professor-link {
+            color: var(--primary);
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        .professor-link:hover {
+            text-decoration: underline;
+        }
+
         .empty {
             text-align: center;
             padding: 30px;
+            color: var(--muted);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
             color: var(--muted);
         }
 
@@ -205,8 +315,286 @@
             padding: 30px;
         }
 
-        @media (max-width: 900px) {
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(17, 24, 39, 0.65);
+            z-index: 1000;
+            padding: 30px;
+            overflow-y: auto;
+        }
+
+        .modal-overlay.open {
+            display: block;
+        }
+
+        .modal {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: var(--card);
+            border-radius: 14px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+            overflow: hidden;
+        }
+
+        .modal-header {
+            background: #111827;
+            color: white;
+            padding: 22px 26px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 20px;
+        }
+
+        .modal-header h2 {
+            margin: 0 0 6px;
+            font-size: 22px;
+        }
+
+        .modal-header p {
+            margin: 0;
+            color: #d1d5db;
+            font-size: 13px;
+        }
+
+        .modal-close {
+            background: transparent;
+            color: white;
+            font-size: 28px;
+            padding: 0 8px;
+            line-height: 1;
+        }
+
+        .modal-close:hover {
+            background: transparent;
+            opacity: 0.7;
+        }
+
+        .modal-body {
+            padding: 24px;
+        }
+
+        .detail-summary {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 14px;
+            margin-bottom: 24px;
+        }
+
+        .detail-card {
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 16px;
+            background: #f9fafb;
+        }
+
+        .detail-card-title {
+            color: var(--muted);
+            font-size: 12px;
+            margin-bottom: 7px;
+        }
+
+        .detail-card-value {
+            font-size: 22px;
+            font-weight: bold;
+        }
+
+        .detail-section {
+            margin-top: 24px;
+        }
+
+        .detail-section h3 {
+            margin: 0 0 12px;
+            font-size: 17px;
+        }
+
+        .publication-table-wrapper {
+            overflow-x: auto;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+        }
+
+        .publication-table {
+            min-width: 1380px;
+        }
+
+        .publication-table th,
+        .publication-table td {
+            padding: 10px;
+        }
+
+        .publication-title {
+            white-space: normal;
+            min-width: 300px;
+            max-width: 500px;
+            text-align: left !important;
+        }
+
+        .publication-authors {
+            white-space: normal;
+            min-width: 250px;
+            max-width: 400px;
+            text-align: left !important;
+        }
+
+        .qualis-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 6px;
+            background: #eef2ff;
+            color: #3730a3;
+            font-weight: bold;
+        }
+
+        .qualis-manual {
+            background: #fff7ed;
+            color: #c2410c;
+        }
+
+        .qualis-missing {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 6px;
+            background: #fee2e2;
+            color: var(--danger);
+            font-weight: bold;
+        }
+
+        .qualis-source {
+            display: block;
+            margin-top: 4px;
+            font-size: 10px;
+            color: var(--muted);
+            font-weight: normal;
+        }
+
+        .qualis-edit {
+            margin-top: 7px;
+        }
+
+        .qualis-edit button {
+            padding: 5px 8px;
+            font-size: 11px;
+            background: #6b7280;
+        }
+
+        .qualis-editor {
+            margin-top: 8px;
+            padding: 10px;
+            background: #f9fafb;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            min-width: 210px;
+        }
+
+        .qualis-editor select {
+            width: 100%;
+            padding: 7px 8px;
+            font-size: 12px;
+            margin-bottom: 7px;
+        }
+
+        .qualis-editor input {
+            width: 100%;
+            padding: 7px 8px;
+            font-size: 12px;
+            margin-bottom: 7px;
+        }
+
+        .qualis-editor-actions {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .qualis-editor-actions button {
+            padding: 6px 9px;
+            font-size: 11px;
+        }
+
+        .qualis-save {
+            background: var(--success) !important;
+        }
+
+        .qualis-auto {
+            background: #6b7280 !important;
+        }
+
+        .doi-link {
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        .doi-link:hover {
+            text-decoration: underline;
+        }
+
+        .coauthor-list {
+            color: var(--muted);
+            font-size: 12px;
+            white-space: normal;
+        }
+
+        .detail-empty {
+            padding: 24px;
+            text-align: center;
+            color: var(--muted);
+            border: 1px dashed var(--border);
+            border-radius: 10px;
+        }
+
+        .student-author-cell {
+            min-width: 105px;
+        }
+
+        .student-author-control {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+        }
+
+        .student-author-checkbox {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: var(--primary);
+        }
+
+        .student-author-checkbox:disabled {
+            cursor: wait;
+            opacity: 0.5;
+        }
+
+        .student-author-label {
+            font-size: 10px;
+            color: var(--muted);
+        }
+
+        .student-author-status {
+            font-size: 10px;
+            color: var(--muted);
+            min-height: 12px;
+        }
+
+        .student-author-status.saved {
+            color: var(--success);
+        }
+
+        .student-author-status.error {
+            color: var(--danger);
+        }
+
+        @media (max-width: 1100px) {
+
             .cards {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .detail-summary {
                 grid-template-columns: repeat(2, 1fr);
             }
 
@@ -217,262 +605,2765 @@
             main {
                 padding: 0 14px;
             }
+
         }
 
         @media (max-width: 550px) {
+
             .cards {
                 grid-template-columns: 1fr;
             }
+
+            .detail-summary {
+                grid-template-columns: 1fr;
+            }
+
+            .config-row {
+                align-items: stretch;
+                flex-direction: column;
+            }
+
+            .config-field input,
+            .config-field.days input,
+            .config-field.score input {
+                width: 100%;
+            }
+
+            button {
+                width: 100%;
+            }
+
+            .modal-overlay {
+                padding: 10px;
+            }
+
+            .modal-body {
+                padding: 15px;
+            }
+
         }
+
     </style>
+
 </head>
 
 <body>
 
 <header>
-    <h1>Avaliação PPGComp {{ data.configuracao.reference_year }}</h1>
 
-    <p>
-        Produção científica e coautorias —
-        período {{ data.configuracao.period_start }}–{{ data.configuracao.reference_year }}
+    <h1>Avaliação PPGComp</h1>
+
+    <p id="periodDescription">
+        Produção científica e coautorias
     </p>
+
 </header>
+
 
 <main>
 
-    <section class="cards">
+<section class="config-card">
 
-        <div class="card">
-            <div class="card-title">Professores</div>
-            <div class="card-value">{{ data.professors|length }}</div>
-            <div class="card-subtitle">Pesquisadores avaliados</div>
+    <div class="config-title">
+        Configuração da avaliação
+    </div>
+
+
+    <div class="config-row">
+
+        <div class="config-field">
+
+            <label for="startYear">
+                Ano inicial
+            </label>
+
+            <input
+                type="number"
+                id="startYear"
+                min="1900"
+                max="2100"
+                value="{{ data.configuracao.evaluation_start_year or 2023 }}"
+            >
+
         </div>
 
-        <div class="card">
-            <div class="card-title">Publicações distintas</div>
-            <div class="card-value">{{ data.publications|length }}</div>
-            <div class="card-subtitle">Artigos e trabalhos no período</div>
+
+        <div class="config-field">
+
+            <label for="endYear">
+                Ano final
+            </label>
+
+            <input
+                type="number"
+                id="endYear"
+                min="1900"
+                max="2100"
+                value="{{ data.configuracao.evaluation_end_year or 2026 }}"
+            >
+
         </div>
 
-        <div class="card">
-            <div class="card-title">Registros de coautoria</div>
-            <div class="card-value">{{ data.coauthorships|length }}</div>
-            <div class="card-subtitle">Relações entre pesquisadores</div>
+
+        <div class="config-field score">
+
+            <label for="minScore">
+                Pontuação mínima
+            </label>
+
+            <input
+                type="number"
+                id="minScore"
+                min="0"
+                max="1000"
+                step="0.1"
+                value="{{ data.configuracao.min_score or 4.0 }}"
+            >
+
         </div>
 
-        <div class="card">
-            <div class="card-title">Pendências</div>
-            <div class="card-value">{{ data.pending|length }}</div>
-            <div class="card-subtitle">Publicações sem classificação Qualis</div>
+
+        <div class="config-field days">
+
+            <label for="staleDays">
+                Lattes desatualizado após (dias)
+            </label>
+
+            <input
+                type="number"
+                id="staleDays"
+                min="0"
+                max="3650"
+                value="{{ data.configuracao.lattes_update_limit_days or 365 }}"
+            >
+
         </div>
 
-    </section>
 
-    <div class="toolbar">
+        <button id="updateButton">
+            Atualizar avaliação
+        </button>
 
-        <input
-            type="text"
-            id="search"
-            placeholder="Buscar professor..."
-        >
 
-        <select id="statusFilter">
-            <option value="todos">Todos os status</option>
-            <option value="ATENDE">Atende</option>
-            <option value="NÃO ATENDE">Não atende</option>
-        </select>
+        <button id="exportExcelButton">
+            Exportar Excel
+        </button>
 
     </div>
 
-    <section class="table-card">
 
-        <div class="table-wrapper">
+    <div
+        class="config-status"
+        id="configStatus"
+    >
+        Pronto.
+    </div>
 
-            <table id="professorsTable">
 
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>Professor</th>
-                        <th>Atualização Lattes</th>
-                        <th>A1</th>
-                        <th>A2</th>
-                        <th>A3</th>
-                        <th>A4</th>
-                        <th>A5</th>
-                        <th>A6</th>
-                        <th>A7</th>
-                        <th>A8</th>
-                        <th>Total</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
+    <div class="legend">
 
-                <tbody>
+        <span class="legend-red">
+            Nome em vermelho
+        </span>
 
-                    {% for professor in data.professors.values()|sort(attribute='total', reverse=true) %}
+        = Lattes desatualizado conforme o limite configurado.
 
-                    <tr
-                        data-name="{{ professor.professor|lower }}"
-                        data-status="{{ professor.status }}"
-                    >
+    </div>
 
-                        <td class="rank">
-                            {{ loop.index }}
-                        </td>
+</section>
 
-                        <td>
-                            <strong
-                                class="professor-name"
-                                data-update="{{ professor.lattes_update_date }}"
-                            >
-                                {{ professor.professor }}
-                            </strong>
 
-                            <div class="progress-container">
-                                <div
-                                    class="progress"
-                                    style="width: {{ [professor.total / data.configuracao.min_score * 100, 100]|min }}%;"
-                                ></div>
-                            </div>
-                        </td>
+<section class="cards">
 
-                        <td>
-                            {{ professor.lattes_update or "-" }}
-                        </td>
+    <div class="card">
 
-                        <td>{{ professor.counts.get('A1', 0) }}</td>
-                        <td>{{ professor.counts.get('A2', 0) }}</td>
-                        <td>{{ professor.counts.get('A3', 0) }}</td>
-                        <td>{{ professor.counts.get('A4', 0) }}</td>
-
-                        <td>{{ professor.counts.get('B1', 0) }}</td>
-                        <td>{{ professor.counts.get('B2', 0) }}</td>
-                        <td>{{ professor.counts.get('B3', 0) }}</td>
-                        <td>{{ professor.counts.get('B4', 0) }}</td>
-
-                        <td class="score">
-                            {{ "%.3f"|format(professor.total) }}
-                        </td>
-
-                        <td>
-                            {% if professor.status == "ATENDE" %}
-
-                                <span class="status status-ok">
-                                    ATENDE
-                                </span>
-
-                            {% else %}
-
-                                <span class="status status-no">
-                                    NÃO ATENDE
-                                </span>
-
-                            {% endif %}
-                        </td>
-
-                    </tr>
-
-                    {% else %}
-
-                    <tr>
-                        <td colspan="13" class="empty">
-                            Nenhum professor encontrado.
-                        </td>
-                    </tr>
-
-                    {% endfor %}
-
-                </tbody>
-
-            </table>
-
+        <div class="card-title">
+            Professores
         </div>
 
-    </section>
+        <div
+            class="card-value"
+            id="cardProfessors"
+        >
+            -
+        </div>
+
+        <div class="card-subtitle">
+            Pesquisadores avaliados
+        </div>
+
+    </div>
+
+
+    <div class="card">
+
+        <div class="card-title">
+            Publicações distintas
+        </div>
+
+        <div
+            class="card-value"
+            id="cardPublications"
+        >
+            -
+        </div>
+
+        <div class="card-subtitle">
+            Artigos e trabalhos no período
+        </div>
+
+    </div>
+
+
+    <div class="card">
+
+        <div class="card-title">
+            Registros de coautoria
+        </div>
+
+        <div
+            class="card-value"
+            id="cardCoauthorships"
+        >
+            -
+        </div>
+
+        <div class="card-subtitle">
+            Relações entre pesquisadores
+        </div>
+
+    </div>
+
+
+    <div class="card">
+
+        <div class="card-title">
+            Pendências
+        </div>
+
+        <div
+            class="card-value"
+            id="cardPending"
+        >
+            -
+        </div>
+
+        <div class="card-subtitle">
+            Publicações sem classificação Qualis
+        </div>
+
+    </div>
+
+</section>
+
+
+<div class="toolbar">
+
+    <input
+        type="text"
+        id="search"
+        placeholder="Buscar professor..."
+    >
+
+
+    <select id="statusFilter">
+
+        <option value="todos">
+            Todos os status
+        </option>
+
+        <option value="ATENDE">
+            Atende
+        </option>
+
+        <option value="NÃO ATENDE">
+            Não atende
+        </option>
+
+    </select>
+
+</div>
+
+
+<section class="table-card">
+
+    <div class="table-wrapper">
+
+        <table id="professorsTable">
+
+            <thead>
+
+                <tr>
+
+                    <th>#</th>
+                    <th>Professor</th>
+                    <th>Atualização Lattes</th>
+                    <th>A1</th>
+                    <th>A2</th>
+                    <th>A3</th>
+                    <th>A4</th>
+                    <th>A5</th>
+                    <th>A6</th>
+                    <th>A7</th>
+                    <th>A8</th>
+                    <th>Total</th>
+                    <th>Status</th>
+
+                </tr>
+
+            </thead>
+
+
+            <tbody id="professorsBody">
+
+                <tr>
+
+                    <td
+                        colspan="13"
+                        class="loading"
+                    >
+                        Carregando avaliação...
+                    </td>
+
+                </tr>
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+</section>
 
 </main>
 
+
+<div
+    class="modal-overlay"
+    id="professorModal"
+>
+
+    <div class="modal">
+
+        <div class="modal-header">
+
+            <div>
+
+                <h2 id="modalProfessorName">
+                    Professor
+                </h2>
+
+                <p id="modalProfessorPeriod">
+                    Período
+                </p>
+
+            </div>
+
+
+            <button
+                class="modal-close"
+                id="modalClose"
+                title="Fechar"
+            >
+                ×
+            </button>
+
+        </div>
+
+
+        <div class="modal-body">
+
+            <div
+                class="detail-summary"
+                id="detailSummary"
+            >
+            </div>
+
+
+            <div class="detail-section">
+
+                <h3>
+                    Publicações do período
+                </h3>
+
+                <div
+                    id="publicationsContainer"
+                >
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
 <footer>
-    Avaliação PPGComp — {{ data.configuracao.reference_year }}
+    Avaliação PPGComp
 </footer>
 
+
 <script>
-    const searchInput = document.getElementById("search");
-    const statusFilter = document.getElementById("statusFilter");
 
-    const rows = document.querySelectorAll(
-        "#professorsTable tbody tr[data-name]"
-    );
+    const searchInput =
+        document.getElementById(
+            "search"
+        );
 
-    function filterTable() {
+
+    const statusFilter =
+        document.getElementById(
+            "statusFilter"
+        );
+
+
+    const startYearInput =
+        document.getElementById(
+            "startYear"
+        );
+
+
+    const endYearInput =
+        document.getElementById(
+            "endYear"
+        );
+
+
+    const minScoreInput =
+        document.getElementById(
+            "minScore"
+        );
+
+
+    const staleDaysInput =
+        document.getElementById(
+            "staleDays"
+        );
+
+
+    const updateButton =
+        document.getElementById(
+            "updateButton"
+        );
+
+
+    const exportExcelButton =
+        document.getElementById(
+            "exportExcelButton"
+        );
+
+
+    const professorsBody =
+        document.getElementById(
+            "professorsBody"
+        );
+
+
+    const periodDescription =
+        document.getElementById(
+            "periodDescription"
+        );
+
+
+    const configStatus =
+        document.getElementById(
+            "configStatus"
+        );
+
+
+    const cardProfessors =
+        document.getElementById(
+            "cardProfessors"
+        );
+
+
+    const cardPublications =
+        document.getElementById(
+            "cardPublications"
+        );
+
+
+    const cardCoauthorships =
+        document.getElementById(
+            "cardCoauthorships"
+        );
+
+
+    const cardPending =
+        document.getElementById(
+            "cardPending"
+        );
+
+
+    const professorModal =
+        document.getElementById(
+            "professorModal"
+        );
+
+
+    const modalProfessorName =
+        document.getElementById(
+            "modalProfessorName"
+        );
+
+
+    const modalProfessorPeriod =
+        document.getElementById(
+            "modalProfessorPeriod"
+        );
+
+
+    const detailSummary =
+        document.getElementById(
+            "detailSummary"
+        );
+
+
+    const publicationsContainer =
+        document.getElementById(
+            "publicationsContainer"
+        );
+
+
+    const modalClose =
+        document.getElementById(
+            "modalClose"
+        );
+
+
+    let currentProfessors = [];
+
+
+    let currentEvaluation = null;
+
+
+    function escapeHtml(value) {
+
+        if (
+            value === null ||
+            value === undefined
+        ) {
+            return "";
+        }
+
+
+        return String(value)
+            .replaceAll(
+                "&",
+                "&amp;"
+            )
+            .replaceAll(
+                "<",
+                "&lt;"
+            )
+            .replaceAll(
+                ">",
+                "&gt;"
+            )
+            .replaceAll(
+                '"',
+                "&quot;"
+            )
+            .replaceAll(
+                "'",
+                "&#039;"
+            );
+
+    }
+
+
+    function escapeAttribute(value) {
+
+        return escapeHtml(value)
+            .replaceAll(
+                "\n",
+                " "
+            )
+            .replaceAll(
+                "\r",
+                " "
+            );
+
+    }
+
+
+    function isLattesOutdated(
+        updateDate,
+        limitDays
+    ) {
+
+        if (!updateDate) {
+            return false;
+        }
+
+
+        const updated =
+            new Date(
+                updateDate +
+                "T00:00:00"
+            );
+
+
+        if (
+            Number.isNaN(
+                updated.getTime()
+            )
+        ) {
+            return false;
+        }
+
+
+        const today =
+            new Date();
+
+
+        const diffDays =
+            Math.floor(
+                (
+                    today -
+                    updated
+                ) /
+                (
+                    1000 *
+                    60 *
+                    60 *
+                    24
+                )
+            );
+
+
+        return diffDays > limitDays;
+
+    }
+
+
+    function renderTable(
+        professors
+    ) {
 
         const search =
-            searchInput.value.toLowerCase().trim();
+            searchInput.value
+                .toLowerCase()
+                .trim();
+
 
         const status =
             statusFilter.value;
 
-        rows.forEach(row => {
 
-            const name =
-                row.dataset.name;
+        const staleDays =
+            Number(
+                staleDaysInput.value
+            );
 
-            const rowStatus =
-                row.dataset.status;
 
-            const matchesName =
-                !search || name.includes(search);
+        const minScore =
+            Number(
+                minScoreInput.value
+            );
 
-            const matchesStatus =
-                status === "todos" ||
-                rowStatus === status;
 
-            row.style.display =
-                matchesName && matchesStatus
-                    ? ""
-                    : "none";
-        });
+        const filtered =
+            professors.filter(
+                professor => {
+
+                    const name =
+                        String(
+                            professor.professor
+                        ).toLowerCase();
+
+
+                    const matchesName =
+                        !search ||
+                        name.includes(
+                            search
+                        );
+
+
+                    const matchesStatus =
+                        status === "todos" ||
+                        professor.status === status;
+
+
+                    return (
+                        matchesName &&
+                        matchesStatus
+                    );
+
+                }
+            );
+
+
+        if (!filtered.length) {
+
+            professorsBody.innerHTML = `
+
+                <tr>
+
+                    <td
+                        colspan="13"
+                        class="empty"
+                    >
+                        Nenhum professor encontrado.
+                    </td>
+
+                </tr>
+
+            `;
+
+            return;
+
+        }
+
+
+        professorsBody.innerHTML =
+            filtered.map(
+                (
+                    professor,
+                    index
+                ) => {
+
+                    const outdated =
+                        isLattesOutdated(
+                            professor.lattes_update_date,
+                            staleDays
+                        );
+
+
+                    const nameStyle =
+                        outdated
+                            ? ' style="color: #b91c1c;"'
+                            : "";
+
+
+                    const progress =
+                        minScore > 0
+                            ? Math.min(
+                                (
+                                    professor.total /
+                                    minScore
+                                ) * 100,
+                                100
+                            )
+                            : 100;
+
+
+                    const counts =
+                        professor.counts ||
+                        {};
+
+
+                    const statusHtml =
+                        professor.status ===
+                        "ATENDE"
+
+                        ? `
+
+                            <span
+                                class="status status-ok"
+                            >
+                                ATENDE
+                            </span>
+
+                        `
+
+                        : `
+
+                            <span
+                                class="status status-no"
+                            >
+                                NÃO ATENDE
+                            </span>
+
+                        `;
+
+
+                    return `
+
+                        <tr
+                            data-name="${escapeAttribute(
+                                professor.professor
+                            ).toLowerCase()}"
+                            data-status="${escapeAttribute(
+                                professor.status
+                            )}"
+                        >
+
+                            <td class="rank">
+                                ${index + 1}
+                            </td>
+
+
+                            <td>
+
+                                <strong
+                                    class="professor-link"
+                                    ${nameStyle}
+                                    data-professor="${escapeAttribute(
+                                        professor.professor
+                                    )}"
+                                    title="Clique para ver o detalhamento"
+                                >
+                                    ${escapeHtml(
+                                        professor.professor
+                                    )}
+                                </strong>
+
+
+                                <div
+                                    class="progress-container"
+                                >
+
+                                    <div
+                                        class="progress"
+                                        style="width: ${progress}%"
+                                    ></div>
+
+                                </div>
+
+                            </td>
+
+
+                            <td>
+                                ${escapeHtml(
+                                    professor.lattes_update ||
+                                    "-"
+                                )}
+                            </td>
+
+
+                            <td>
+                                ${counts.A1 || 0}
+                            </td>
+
+
+                            <td>
+                                ${counts.A2 || 0}
+                            </td>
+
+
+                            <td>
+                                ${counts.A3 || 0}
+                            </td>
+
+
+                            <td>
+                                ${counts.A4 || 0}
+                            </td>
+
+
+                            <td>
+                                ${counts.A5 || 0}
+                            </td>
+
+
+                            <td>
+                                ${counts.A6 || 0}
+                            </td>
+
+
+                            <td>
+                                ${counts.A7 || 0}
+                            </td>
+
+
+                            <td>
+                                ${counts.A8 || 0}
+                            </td>
+
+
+                            <td class="score">
+                                ${Number(
+                                    professor.total
+                                ).toFixed(3)}
+                            </td>
+
+
+                            <td>
+                                ${statusHtml}
+                            </td>
+
+                        </tr>
+
+                    `;
+
+                }
+            ).join("");
+
+
+        document
+            .querySelectorAll(
+                ".professor-link"
+            )
+            .forEach(
+                element => {
+
+                    element.addEventListener(
+                        "click",
+                        () => {
+
+                            openProfessorDetail(
+                                element.dataset.professor
+                            );
+
+                        }
+                    );
+
+                }
+            );
+
     }
 
-    searchInput.addEventListener(
-        "input",
-        filterTable
-    );
 
-    statusFilter.addEventListener(
-        "change",
-        filterTable
-    );
+    function updateCards(
+        resultado
+    ) {
 
-    /*
-     * Lattes atualizado há mais de 30 dias:
-     * nome do professor fica vermelho.
-     */
-    document.querySelectorAll(".professor-name").forEach(name => {
+        const professors =
+            Object.values(
+                resultado.professors ||
+                {}
+            );
 
-        const updateDate = name.dataset.update;
 
-        if (!updateDate) {
+        cardProfessors.textContent =
+            professors.length;
+
+
+        cardPublications.textContent =
+            (
+                resultado.publications ||
+                []
+            ).length;
+
+
+        cardCoauthorships.textContent =
+            Object.keys(
+                resultado.coauthorships ||
+                {}
+            ).length;
+
+
+        cardPending.textContent =
+            (
+                resultado.pending ||
+                []
+            ).length;
+
+    }
+
+
+    function getProfessorPublications(
+        professorName
+    ) {
+
+        if (!currentEvaluation) {
+            return [];
+        }
+
+
+        const publications =
+            currentEvaluation.publications ||
+            [];
+
+
+        return publications.filter(
+            publication => {
+
+                const evaluated =
+                    publication.evaluated_professors ||
+                    [];
+
+
+                return evaluated.includes(
+                    professorName
+                );
+
+            }
+        );
+
+    }
+
+
+    function formatAuthors(
+        authors
+    ) {
+
+        if (!authors) {
+            return "-";
+        }
+
+
+        return escapeHtml(
+            authors
+        );
+
+    }
+
+
+    function renderProfessorSummary(
+        professor
+    ) {
+
+        const statusClass =
+            professor.status ===
+            "ATENDE"
+
+                ? "status status-ok"
+
+                : "status status-no";
+
+
+        detailSummary.innerHTML = `
+
+            <div class="detail-card">
+
+                <div class="detail-card-title">
+                    Pontuação total
+                </div>
+
+                <div class="detail-card-value">
+                    ${Number(
+                        professor.total
+                    ).toFixed(3)}
+                </div>
+
+            </div>
+
+
+            <div class="detail-card">
+
+                <div class="detail-card-title">
+                    Status
+                </div>
+
+                <div class="detail-card-value">
+
+                    <span
+                        class="${statusClass}"
+                    >
+                        ${escapeHtml(
+                            professor.status
+                        )}
+                    </span>
+
+                </div>
+
+            </div>
+
+
+            <div class="detail-card">
+
+                <div class="detail-card-title">
+                    Publicações
+                </div>
+
+                <div class="detail-card-value">
+                    ${professor.publications || 0}
+                </div>
+
+            </div>
+
+
+            <div class="detail-card">
+
+                <div class="detail-card-title">
+                    Coautorias
+                </div>
+
+                <div class="detail-card-value">
+                    ${
+                        professor.coauthored_publications ||
+                        0
+                    }
+                </div>
+
+            </div>
+
+
+            <div class="detail-card">
+
+                <div class="detail-card-title">
+                    Lattes atualizado
+                </div>
+
+                <div
+                    class="detail-card-value"
+                    style="font-size: 16px;"
+                >
+                    ${escapeHtml(
+                        professor.lattes_update ||
+                        "-"
+                    )}
+                </div>
+
+            </div>
+
+        `;
+
+    }
+
+
+    function renderQualisEditor(
+        publication,
+        index
+    ) {
+
+        const current =
+            publication.qualis_applied ||
+            publication.qualis ||
+            "";
+
+
+        const manual =
+            publication.qualis_manual ||
+            "";
+
+
+        const note =
+            publication.qualis_manual_note ||
+            "";
+
+
+        const options = [
+            "A1",
+            "A2",
+            "A3",
+            "A4",
+            "A5",
+            "A6",
+            "A7",
+            "A8"
+        ]
+            .map(
+                qualis => `
+                    <option
+                        value="${qualis}"
+                        ${current === qualis ? "selected" : ""}
+                    >
+                        ${qualis}
+                    </option>
+                `
+            )
+            .join("");
+
+
+        return `
+
+            <div
+                class="qualis-editor"
+                id="qualisEditor${index}"
+            >
+
+                <select
+                    id="qualisSelect${index}"
+                >
+
+                    ${options}
+
+                </select>
+
+
+                <input
+                    type="text"
+                    id="qualisNote${index}"
+                    placeholder="Observação opcional"
+                    value="${escapeAttribute(
+                        note
+                    )}"
+                >
+
+
+                <div
+                    class="qualis-editor-actions"
+                >
+
+                    <button
+                        type="button"
+                        class="qualis-save"
+                        onclick="saveQualisOverride(${index})"
+                    >
+                        Salvar
+                    </button>
+
+
+                    ${
+                        manual
+                            ? `
+                                <button
+                                    type="button"
+                                    class="qualis-auto"
+                                    onclick="restoreAutomaticQualis(${index})"
+                                >
+                                    Automático
+                                </button>
+                            `
+                            : ""
+                    }
+
+
+                    <button
+                        type="button"
+                        class="qualis-auto"
+                        onclick="closeQualisEditor(${index})"
+                    >
+                        Cancelar
+                    </button>
+
+                </div>
+
+            </div>
+
+        `;
+
+    }
+
+
+    function toggleQualisEditor(
+        index
+    ) {
+
+        const editor =
+            document.getElementById(
+                `qualisEditor${index}`
+            );
+
+
+        if (editor) {
+            editor.remove();
             return;
         }
 
-        const updated = new Date(
-            updateDate + "T00:00:00"
-        );
 
-        const today = new Date();
+        const container =
+            document.getElementById(
+                `qualisContainer${index}`
+            );
 
-        const diffDays = Math.floor(
-            (today - updated) /
-            (1000 * 60 * 60 * 24)
-        );
 
-        if (diffDays > 30) {
-            name.style.color = "#b91c1c";
+        if (!container) {
+            return;
         }
-    });
+
+
+        container.insertAdjacentHTML(
+            "beforeend",
+            renderQualisEditor(
+                container._publication,
+                index
+            )
+        );
+
+    }
+
+
+    function closeQualisEditor(
+        index
+    ) {
+
+        const editor =
+            document.getElementById(
+                `qualisEditor${index}`
+            );
+
+
+        if (editor) {
+            editor.remove();
+        }
+
+    }
+
+
+    async function saveQualisOverride(
+        index
+    ) {
+
+        const container =
+            document.getElementById(
+                `qualisContainer${index}`
+            );
+
+
+        if (!container) {
+            return;
+        }
+
+
+        const publication =
+            container._publication;
+
+
+        const select =
+            document.getElementById(
+                `qualisSelect${index}`
+            );
+
+
+        const noteInput =
+            document.getElementById(
+                `qualisNote${index}`
+            );
+
+
+        if (!select) {
+            return;
+        }
+
+
+        const qualis =
+            select.value;
+
+
+        const note =
+            noteInput
+                ? noteInput.value.trim()
+                : "";
+
+
+        configStatus.textContent =
+            "Salvando classificação manual...";
+
+
+        try {
+
+            const response =
+                await fetch(
+                    "/api/qualis/override",
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type":
+                                "application/json"
+                        },
+                        body: JSON.stringify(
+                            {
+                                doi:
+                                    publication.doi ||
+                                    "",
+                                title:
+                                    publication.title ||
+                                    "",
+                                year:
+                                    publication.year ||
+                                    null,
+                                qualis,
+                                note
+                            }
+                        )
+                    }
+                );
+
+
+            const resultado =
+                await response.json();
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    resultado.erro ||
+                    "Erro ao salvar classificação."
+                );
+
+            }
+
+
+            configStatus.textContent =
+                "Classificação manual salva. Recalculando...";
+
+
+            const professorName =
+                modalProfessorName.textContent;
+
+
+            await loadEvaluation();
+
+
+            openProfessorDetail(
+                professorName
+            );
+
+
+            configStatus.textContent =
+                `Qualis manual ${qualis} aplicado e avaliação recalculada.`;
+
+        }
+
+        catch (error) {
+
+            configStatus.textContent =
+                `Erro: ${error.message}`;
+
+        }
+
+    }
+
+
+    async function restoreAutomaticQualis(
+        index
+    ) {
+
+        const container =
+            document.getElementById(
+                `qualisContainer${index}`
+            );
+
+
+        if (!container) {
+            return;
+        }
+
+
+        const publication =
+            container._publication;
+
+
+        configStatus.textContent =
+            "Restaurando classificação automática...";
+
+
+        try {
+
+            const response =
+                await fetch(
+                    "/api/qualis/override",
+                    {
+                        method: "DELETE",
+                        headers: {
+                            "Content-Type":
+                                "application/json"
+                        },
+                        body: JSON.stringify(
+                            {
+                                doi:
+                                    publication.doi ||
+                                    "",
+                                title:
+                                    publication.title ||
+                                    "",
+                                year:
+                                    publication.year ||
+                                    null
+                            }
+                        )
+                    }
+                );
+
+
+            const resultado =
+                await response.json();
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    resultado.erro ||
+                    "Erro ao restaurar classificação."
+                );
+
+            }
+
+
+            const professorName =
+                modalProfessorName.textContent;
+
+
+            await loadEvaluation();
+
+
+            openProfessorDetail(
+                professorName
+            );
+
+
+            configStatus.textContent =
+                "Classificação automática restaurada e avaliação recalculada.";
+
+        }
+
+        catch (error) {
+
+            configStatus.textContent =
+                `Erro: ${error.message}`;
+
+        }
+
+    }
+
+
+    function getPublicationPayload(
+        publication
+    ) {
+
+        return {
+            doi:
+                publication.doi ||
+                "",
+            title:
+                publication.title ||
+                "",
+            year:
+                publication.year ||
+                null
+        };
+
+    }
+
+
+    async function loadStudentAuthorFlag(
+        index
+    ) {
+
+        const container =
+            document.getElementById(
+                `studentAuthorContainer${index}`
+            );
+
+
+        const checkbox =
+            document.getElementById(
+                `studentAuthor${index}`
+            );
+
+
+        const status =
+            document.getElementById(
+                `studentAuthorStatus${index}`
+            );
+
+
+        if (
+            !container ||
+            !checkbox
+        ) {
+            return;
+        }
+
+
+        const publication =
+            container._publication;
+
+
+        checkbox.disabled = true;
+
+
+        try {
+
+            const params =
+                new URLSearchParams(
+                    getPublicationPayload(
+                        publication
+                    )
+                );
+
+
+            const response =
+                await fetch(
+                    `/api/publication/student-author?${params.toString()}`
+                );
+
+
+            const resultado =
+                await response.json();
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    resultado.erro ||
+                    "Erro ao consultar marcação de aluno."
+                );
+
+            }
+
+
+            checkbox.checked =
+                Boolean(
+                    resultado.student_author
+                );
+
+
+            checkbox.disabled =
+                false;
+
+
+            if (status) {
+
+                status.textContent =
+                    checkbox.checked
+                        ? "Marcado"
+                        : "";
+
+                status.className =
+                    checkbox.checked
+                        ? "student-author-status saved"
+                        : "student-author-status";
+
+            }
+
+        }
+
+        catch (error) {
+
+            checkbox.disabled =
+                false;
+
+
+            if (status) {
+
+                status.textContent =
+                    "Erro";
+
+                status.className =
+                    "student-author-status error";
+
+            }
+
+        }
+
+    }
+
+
+    async function saveStudentAuthorFlag(
+        index
+    ) {
+
+        const container =
+            document.getElementById(
+                `studentAuthorContainer${index}`
+            );
+
+
+        const checkbox =
+            document.getElementById(
+                `studentAuthor${index}`
+            );
+
+
+        const status =
+            document.getElementById(
+                `studentAuthorStatus${index}`
+            );
+
+
+        if (
+            !container ||
+            !checkbox
+        ) {
+            return;
+        }
+
+
+        const publication =
+            container._publication;
+
+
+        const value =
+            checkbox.checked;
+
+
+        checkbox.disabled =
+            true;
+
+
+        if (status) {
+
+            status.textContent =
+                "Salvando...";
+
+            status.className =
+                "student-author-status";
+
+        }
+
+
+        try {
+
+            const response =
+                await fetch(
+                    "/api/publication/student-author",
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type":
+                                "application/json"
+                        },
+                        body: JSON.stringify(
+                            {
+                                ...getPublicationPayload(
+                                    publication
+                                ),
+                                student_author:
+                                    value
+                            }
+                        )
+                    }
+                );
+
+
+            const resultado =
+                await response.json();
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    resultado.erro ||
+                    "Erro ao salvar marcação."
+                );
+
+            }
+
+
+            checkbox.checked =
+                Boolean(
+                    resultado.student_author
+                );
+
+
+            if (status) {
+
+                status.textContent =
+                    resultado.student_author
+                        ? "Aluno marcado"
+                        : "Salvo";
+
+                status.className =
+                    "student-author-status saved";
+
+            }
+
+            configStatus.textContent =
+                resultado.student_author
+                    ? "Publicação marcada como tendo aluno entre os autores."
+                    : "Marcação de aluno removida.";
+
+        }
+
+        catch (error) {
+
+            checkbox.checked =
+                !value;
+
+
+            if (status) {
+
+                status.textContent =
+                    "Erro ao salvar";
+
+                status.className =
+                    "student-author-status error";
+
+            }
+
+
+            configStatus.textContent =
+                `Erro: ${error.message}`;
+
+        }
+
+        finally {
+
+            checkbox.disabled =
+                false;
+
+        }
+
+    }
+
+
+    function renderProfessorPublications(
+        publications,
+        professorName
+    ) {
+
+        if (!publications.length) {
+
+            publicationsContainer.innerHTML = `
+
+                <div class="detail-empty">
+
+                    Nenhuma publicação encontrada
+                    para este professor no período selecionado.
+
+                </div>
+
+            `;
+
+            return;
+
+        }
+
+
+        const rows =
+            publications
+                .slice()
+                .sort(
+                    (
+                        a,
+                        b
+                    ) =>
+                        Number(
+                            b.year ||
+                            0
+                        ) -
+                        Number(
+                            a.year ||
+                            0
+                        )
+                )
+                .map(
+                    (
+                        publication,
+                        index
+                    ) => {
+
+                        const qualis =
+                            publication.qualis_applied ||
+                            publication.qualis;
+
+
+                        const manual =
+                            publication.qualis_manual;
+
+
+                        const qualisHtml =
+                            qualis
+
+                            ? `
+
+                                <div
+                                    id="qualisContainer${index}"
+                                >
+
+                                    <span
+                                        class="qualis-badge ${
+                                            manual
+                                                ? "qualis-manual"
+                                                : ""
+                                        }"
+                                    >
+                                        ${escapeHtml(
+                                            qualis
+                                        )}
+                                    </span>
+
+
+                                    <span
+                                        class="qualis-source"
+                                    >
+                                        ${
+                                            manual
+                                                ? `Manual · oficial ${escapeHtml(
+                                                    publication.qualis_official ||
+                                                    "-"
+                                                )}`
+                                                : "Automático"
+                                        }
+                                    </span>
+
+
+                                    <div
+                                        class="qualis-edit"
+                                    >
+
+                                        <button
+                                            type="button"
+                                            onclick="toggleQualisEditor(${index})"
+                                        >
+                                            Editar
+                                        </button>
+
+                                    </div>
+
+                                </div>
+
+                            `
+
+                            : `
+
+                                <div
+                                    id="qualisContainer${index}"
+                                >
+
+                                    <span
+                                        class="qualis-missing"
+                                    >
+                                        Pendente
+                                    </span>
+
+
+                                    <div
+                                        class="qualis-edit"
+                                    >
+
+                                        <button
+                                            type="button"
+                                            onclick="toggleQualisEditor(${index})"
+                                        >
+                                            Classificar
+                                        </button>
+
+                                    </div>
+
+                                </div>
+
+                            `;
+
+
+                        const doi =
+                            String(
+                                publication.doi ||
+                                ""
+                            ).trim();
+
+
+                        const doiHtml =
+                            doi
+
+                            ? `
+
+                                <a
+                                    class="doi-link"
+                                    href="${escapeAttribute(
+                                        doi.startsWith(
+                                            "http"
+                                        )
+                                            ? doi
+                                            : "https://doi.org/" +
+                                              doi
+                                    )}"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                >
+                                    DOI
+                                </a>
+
+                            `
+
+                            : "-";
+
+
+                        const coauthors =
+                            (
+                                publication.evaluated_professors ||
+                                []
+                            )
+                                .filter(
+                                    name =>
+                                        name !==
+                                        professorName
+                                )
+                                .join(
+                                    "; "
+                                );
+
+
+                        const studentAuthorHtml = `
+
+                            <div
+                                class="student-author-control"
+                                id="studentAuthorContainer${index}"
+                            >
+
+                                <input
+                                    type="checkbox"
+                                    class="student-author-checkbox"
+                                    id="studentAuthor${index}"
+                                    title="Marcar se houver pelo menos um aluno entre os autores"
+                                    onchange="saveStudentAuthorFlag(${index})"
+                                    disabled
+                                >
+
+
+                                <span
+                                    class="student-author-label"
+                                >
+                                    aluno
+                                </span>
+
+
+                                <span
+                                    class="student-author-status"
+                                    id="studentAuthorStatus${index}"
+                                >
+                                </span>
+
+                            </div>
+
+                        `;
+
+
+                        const rowHtml = `
+
+                            <tr>
+
+                                <td>
+                                    ${escapeHtml(
+                                        publication.year ||
+                                        "-"
+                                    )}
+                                </td>
+
+
+                                <td
+                                    class="publication-title"
+                                >
+                                    ${escapeHtml(
+                                        publication.title ||
+                                        "-"
+                                    )}
+                                </td>
+
+
+                                <td>
+                                    ${escapeHtml(
+                                        publication.type ||
+                                        "-"
+                                    )}
+                                </td>
+
+
+                                <td>
+                                    ${escapeHtml(
+                                        publication.venue ||
+                                        "-"
+                                    )}
+                                </td>
+
+
+                                <td>
+                                    ${qualisHtml}
+                                </td>
+
+
+                                <td
+                                    class="student-author-cell"
+                                >
+                                    ${studentAuthorHtml}
+                                </td>
+
+
+                                <td>
+                                    ${Number(
+                                        publication.individual_points ||
+                                        0
+                                    ).toFixed(3)}
+                                </td>
+
+
+                                <td>
+                                    ${escapeHtml(
+                                        publication.issn ||
+                                        "-"
+                                    )}
+                                </td>
+
+
+                                <td>
+                                    ${doiHtml}
+                                </td>
+
+
+                                <td
+                                    class="publication-authors"
+                                >
+
+                                    ${formatAuthors(
+                                        publication.authors
+                                    )}
+
+
+                                    ${
+                                        coauthors
+                                            ? `
+
+                                                <div
+                                                    class="coauthor-list"
+                                                >
+                                                    PPGComp:
+                                                    ${escapeHtml(
+                                                        coauthors
+                                                    )}
+                                                </div>
+
+                                            `
+                                            : ""
+                                    }
+
+                                </td>
+
+                            </tr>
+
+                        `;
+
+
+                        setTimeout(
+                            () => {
+
+                                const qualisContainer =
+                                    document.getElementById(
+                                        `qualisContainer${index}`
+                                    );
+
+
+                                if (
+                                    qualisContainer
+                                ) {
+
+                                    qualisContainer._publication =
+                                        publication;
+
+                                }
+
+
+                                const studentContainer =
+                                    document.getElementById(
+                                        `studentAuthorContainer${index}`
+                                    );
+
+
+                                if (
+                                    studentContainer
+                                ) {
+
+                                    studentContainer._publication =
+                                        publication;
+
+                                    loadStudentAuthorFlag(
+                                        index
+                                    );
+
+                                }
+
+                            },
+                            0
+                        );
+
+
+                        return rowHtml;
+
+                    }
+                )
+                .join("");
+
+
+        publicationsContainer.innerHTML = `
+
+            <div
+                class="publication-table-wrapper"
+            >
+
+                <table
+                    class="publication-table"
+                >
+
+                    <thead>
+
+                        <tr>
+
+                            <th>Ano</th>
+                            <th>Título</th>
+                            <th>Tipo</th>
+                            <th>Veículo</th>
+                            <th>Qualis</th>
+                            <th>Aluno?</th>
+                            <th>Pontos</th>
+                            <th>ISSN</th>
+                            <th>DOI</th>
+                            <th>Autores</th>
+
+                        </tr>
+
+                    </thead>
+
+
+                    <tbody>
+                        ${rows}
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        `;
+
+    }
+
+
+    function openProfessorDetail(
+        professorName
+    ) {
+
+        if (!currentEvaluation) {
+            return;
+        }
+
+
+        const professor =
+            currentEvaluation.professors[
+                professorName
+            ];
+
+
+        if (!professor) {
+            return;
+        }
+
+
+        const startYear =
+            currentEvaluation.configuracao.start_year;
+
+
+        const endYear =
+            currentEvaluation.configuracao.end_year;
+
+
+        modalProfessorName.textContent =
+            professorName;
+
+
+        modalProfessorPeriod.textContent =
+            `Avaliação do período ${startYear}–${endYear}`;
+
+
+        renderProfessorSummary(
+            professor
+        );
+
+
+        const publications =
+            getProfessorPublications(
+                professorName
+            );
+
+
+        renderProfessorPublications(
+            publications,
+            professorName
+        );
+
+
+        professorModal.classList.add(
+            "open"
+        );
+
+
+        document.body.style.overflow =
+            "hidden";
+
+    }
+
+
+    function closeProfessorDetail() {
+
+        professorModal.classList.remove(
+            "open"
+        );
+
+
+        document.body.style.overflow =
+            "";
+
+    }
+
+
+    async function loadEvaluation() {
+
+        const startYear =
+            Number(
+                startYearInput.value
+            );
+
+
+        const endYear =
+            Number(
+                endYearInput.value
+            );
+
+
+        const minScore =
+            Number(
+                minScoreInput.value
+            );
+
+
+        if (
+            !Number.isInteger(
+                startYear
+            ) ||
+            !Number.isInteger(
+                endYear
+            )
+        ) {
+
+            configStatus.textContent =
+                "Informe anos válidos.";
+
+            return;
+
+        }
+
+
+        if (
+            !Number.isFinite(
+                minScore
+            ) ||
+            minScore < 0
+        ) {
+
+            configStatus.textContent =
+                "Informe uma pontuação mínima válida.";
+
+            return;
+
+        }
+
+
+        if (
+            startYear >
+            endYear
+        ) {
+
+            configStatus.textContent =
+                "O ano inicial não pode ser maior que o ano final.";
+
+            return;
+
+        }
+
+
+        updateButton.disabled =
+            true;
+
+
+        configStatus.textContent =
+            "Recalculando avaliação...";
+
+
+        professorsBody.innerHTML = `
+
+            <tr>
+
+                <td
+                    colspan="13"
+                    class="loading"
+                >
+                    Recalculando avaliação...
+                </td>
+
+            </tr>
+
+        `;
+
+
+        try {
+
+            const response =
+                await fetch(
+                    `/api/avaliacao?start_year=${encodeURIComponent(
+                        startYear
+                    )}&end_year=${encodeURIComponent(
+                        endYear
+                    )}&min_score=${encodeURIComponent(
+                        minScore
+                    )}`
+                );
+
+
+            const resultado =
+                await response.json();
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    resultado.erro ||
+                    "Erro ao calcular avaliação."
+                );
+
+            }
+
+
+            currentEvaluation =
+                resultado;
+
+
+            currentProfessors =
+                Object.values(
+                    resultado.professors ||
+                    {}
+                ).sort(
+                    (
+                        a,
+                        b
+                    ) =>
+                        b.total -
+                        a.total
+                );
+
+
+            minScoreInput.value =
+                Number(
+                    resultado.configuracao.min_score
+                ).toString();
+
+
+            updateCards(
+                resultado
+            );
+
+
+            renderTable(
+                currentProfessors
+            );
+
+
+            periodDescription.textContent =
+                `Produção científica e coautorias — período ${startYear}–${endYear} — pontuação mínima ${Number(
+                    resultado.configuracao.min_score
+                ).toFixed(1)}`;
+
+
+            configStatus.textContent =
+                `Avaliação recalculada para ${startYear}–${endYear}, com pontuação mínima de ${Number(
+                    resultado.configuracao.min_score
+                ).toFixed(1)}.`;
+
+        }
+
+        catch (error) {
+
+            professorsBody.innerHTML = `
+
+                <tr>
+
+                    <td
+                        colspan="13"
+                        class="empty"
+                    >
+                        Erro ao carregar avaliação:
+                        ${escapeHtml(
+                            error.message
+                        )}
+                    </td>
+
+                </tr>
+
+            `;
+
+
+            configStatus.textContent =
+                "Erro ao recalcular avaliação.";
+
+        }
+
+        finally {
+
+            updateButton.disabled =
+                false;
+
+        }
+
+    }
+
+
+    async function exportExcel() {
+
+        const startYear =
+            Number(
+                startYearInput.value
+            );
+
+
+        const endYear =
+            Number(
+                endYearInput.value
+            );
+
+
+        const minScore =
+            Number(
+                minScoreInput.value
+            );
+
+
+        if (
+            !Number.isInteger(
+                startYear
+            ) ||
+            !Number.isInteger(
+                endYear
+            )
+        ) {
+
+            configStatus.textContent =
+                "Informe anos válidos antes de exportar.";
+
+            return;
+
+        }
+
+
+        if (
+            startYear >
+            endYear
+        ) {
+
+            configStatus.textContent =
+                "O ano inicial não pode ser maior que o ano final.";
+
+            return;
+
+        }
+
+
+        if (
+            !Number.isFinite(
+                minScore
+            ) ||
+            minScore < 0
+        ) {
+
+            configStatus.textContent =
+                "Informe uma pontuação mínima válida.";
+
+            return;
+
+        }
+
+
+        exportExcelButton.disabled =
+            true;
+
+
+        configStatus.textContent =
+            "Gerando Excel com as edições atuais...";
+
+
+        try {
+
+            const response =
+                await fetch(
+                    "/api/export/excel",
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type":
+                                "application/json"
+                        },
+                        body: JSON.stringify(
+                            {
+                                start_year:
+                                    startYear,
+                                end_year:
+                                    endYear,
+                                min_score:
+                                    minScore
+                            }
+                        )
+                    }
+                );
+
+
+            if (!response.ok) {
+
+                let mensagem =
+                    "Erro ao gerar Excel.";
+
+                try {
+
+                    const resultado =
+                        await response.json();
+
+                    mensagem =
+                        resultado.erro ||
+                        mensagem;
+
+                }
+
+                catch (error) {
+                    // Mantém mensagem padrão.
+                }
+
+
+                throw new Error(
+                    mensagem
+                );
+
+            }
+
+
+            const blob =
+                await response.blob();
+
+
+            const url =
+                window.URL.createObjectURL(
+                    blob
+                );
+
+
+            const link =
+                document.createElement(
+                    "a"
+                );
+
+
+            link.href =
+                url;
+
+
+            link.download =
+                `avaliacao_ppgcomp_${endYear}.xlsx`;
+
+
+            document.body.appendChild(
+                link
+            );
+
+
+            link.click();
+
+
+            link.remove();
+
+
+            window.URL.revokeObjectURL(
+                url
+            );
+
+
+            configStatus.textContent =
+                "Excel gerado com as edições atuais e baixado com sucesso.";
+
+        }
+
+        catch (error) {
+
+            configStatus.textContent =
+                `Erro ao exportar Excel: ${error.message}`;
+
+        }
+
+        finally {
+
+            exportExcelButton.disabled =
+                false;
+
+        }
+
+    }
+
+
+    searchInput.addEventListener(
+        "input",
+        () => {
+
+            renderTable(
+                currentProfessors
+            );
+
+        }
+    );
+
+
+    statusFilter.addEventListener(
+        "change",
+        () => {
+
+            renderTable(
+                currentProfessors
+            );
+
+        }
+    );
+
+
+    staleDaysInput.addEventListener(
+        "input",
+        () => {
+
+            renderTable(
+                currentProfessors
+            );
+
+        }
+    );
+
+
+    minScoreInput.addEventListener(
+        "input",
+        () => {
+
+            renderTable(
+                currentProfessors
+            );
+
+        }
+    );
+
+
+    updateButton.addEventListener(
+        "click",
+        loadEvaluation
+    );
+
+
+    exportExcelButton.addEventListener(
+        "click",
+        exportExcel
+    );
+
+
+    modalClose.addEventListener(
+        "click",
+        closeProfessorDetail
+    );
+
+
+    professorModal.addEventListener(
+        "click",
+        event => {
+
+            if (
+                event.target ===
+                professorModal
+            ) {
+
+                closeProfessorDetail();
+
+            }
+
+        }
+    );
+
+
+    document.addEventListener(
+        "keydown",
+        event => {
+
+            if (
+                event.key === "Escape" &&
+                professorModal.classList.contains(
+                    "open"
+                )
+            ) {
+
+                closeProfessorDetail();
+
+            }
+
+        }
+    );
+
+
+    loadEvaluation();
+
 </script>
 
 </body>
+
 </html>

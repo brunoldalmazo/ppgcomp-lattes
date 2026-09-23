@@ -3,8 +3,6 @@ from datetime import date, datetime
 
 from app.config import (
     OUTPUT_DIR,
-    PERIOD_START,
-    PERIOD_YEARS,
     REFERENCE_YEAR,
     MIN_SCORE,
     LATTES_UPDATE_LIMIT_DAYS,
@@ -38,14 +36,28 @@ def make_json_safe(value):
     return value
 
 
-def export_json(resultado):
+def export_json(
+    resultado,
+    lattes_data=None,
+    start_year=None,
+    end_year=None,
+):
     """
-    Salva o resultado da avaliação em JSON no diretório anual.
+    Salva o resultado da avaliação em JSON.
 
-    Estrutura:
+    Além do resultado da avaliação, pode armazenar
+    os dados completos coletados dos Lattes.
+
+    Estrutura principal:
+
         output/
         └── ANO/
             └── dados.json
+
+    O campo "lattes_data" contém todas as publicações
+    coletadas, independentemente do período avaliado.
+    Isso permite recalcular posteriormente períodos
+    diferentes sem precisar coletar os Lattes novamente.
     """
 
     year_output_dir = (
@@ -66,8 +78,6 @@ def export_json(resultado):
     data = {
         "configuracao": {
             "reference_year": REFERENCE_YEAR,
-            "period_years": PERIOD_YEARS,
-            "period_start": PERIOD_START,
             "min_score": MIN_SCORE,
             "lattes_update_limit_days": (
                 LATTES_UPDATE_LIMIT_DAYS
@@ -77,7 +87,18 @@ def export_json(resultado):
                 QUALIS_FILE
             ),
             "weights": WEIGHTS,
+            "evaluation_start_year": (
+                start_year
+            ),
+            "evaluation_end_year": (
+                end_year
+            ),
         },
+        "lattes_data": (
+            lattes_data
+            if lattes_data is not None
+            else []
+        ),
         "professors": resultado[
             "professors"
         ],

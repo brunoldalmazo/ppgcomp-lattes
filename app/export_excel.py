@@ -272,6 +272,10 @@ def export_excel(resultado):
                 "qualis_matched_by",
                 "",
             ),
+            publication.get(
+                "student_author",
+                False,
+            ),
             ", ".join(
                 evaluated_professors
             ),
@@ -303,6 +307,7 @@ def export_excel(resultado):
             "Fonte Qualis",
             "Período Qualis",
             "Tipo de match Qualis",
+            "Aluno entre autores",
             "Professores avaliados",
             "Nº professores avaliados",
             "Pontos individuais",
@@ -371,6 +376,10 @@ def export_excel(resultado):
                     0,
                 ),
                 publication.get(
+                    "student_author",
+                    False,
+                ),
+                publication.get(
                     "individual_points",
                     0,
                 ),
@@ -390,6 +399,7 @@ def export_excel(resultado):
             "DOI",
             "Qualis",
             "Pontos Qualis",
+            "Aluno entre autores",
             "Pontos individuais",
         ],
         coauthorship_rows,

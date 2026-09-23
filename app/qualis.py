@@ -12,11 +12,18 @@ QUALIS_POINTS = {
     "A2": 0.875,
     "A3": 0.750,
     "A4": 0.625,
-    "B1": 0.500,
-    "B2": 0.375,
-    "B3": 0.250,
-    "B4": 0.125,
-    "C": 0.000,
+    "A5": 0.500,
+    "A6": 0.375,
+    "A7": 0.250,
+    "A8": 0.125,
+}
+
+
+QUALIS_CONVERSION = {
+    "B1": "A5",
+    "B2": "A6",
+    "B3": "A7",
+    "B4": "A8",
 }
 
 
@@ -178,10 +185,6 @@ def extract_explicit_acronym(value):
 
     identifiers = set()
 
-    normalized = normalize_text(
-        value
-    )
-
     for match in re.findall(
         r"\b[A-Z][A-Z0-9-]{1,19}\b",
         value,
@@ -199,20 +202,6 @@ def extract_explicit_acronym(value):
 
 
 def extract_leading_acronym(value):
-    """
-    Detecta acrônimos no início do nome do evento.
-
-    Exemplos:
-        IECON 2024 ... -> iecon
-        ICC 2025 ...   -> icc
-        ICRA ...       -> icra
-        SIBGRAPI ...   -> sibgrapi
-        CROS ...       -> cros
-
-    Não considera palavras posteriores e, portanto,
-    não transforma ICC em ICC-E/ICCAR/ICCCN.
-    """
-
     if not value:
         return set()
 
@@ -237,10 +226,6 @@ def extract_leading_acronym(value):
 
 
 def event_identifiers(title):
-    """
-    Gera identificadores seguros para eventos.
-    """
-
     title_norm = normalize_text(
         title
     )
@@ -275,13 +260,6 @@ def event_identifiers(title):
 
 
 def conference_title_tokens(value):
-    """
-    Extrai os termos relevantes de um título de conferência.
-
-    Remove números e palavras muito genéricas que aparecem
-    em inúmeros nomes de eventos.
-    """
-
     normalized = normalize_conference_title(
         value
     )
@@ -323,6 +301,22 @@ def conference_title_tokens(value):
     }
 
 
+def normalize_qualis(value):
+    qualis = (
+        str(value or "")
+        .strip()
+        .upper()
+    )
+
+    if qualis in QUALIS_POINTS:
+        return qualis
+
+    return QUALIS_CONVERSION.get(
+        qualis,
+        "",
+    )
+
+
 def read_qualis_file(path):
     path = Path(path)
 
@@ -340,22 +334,16 @@ def read_qualis_file(path):
     rename_map = {}
 
     for column in df.columns:
-
         if column == "issn":
             rename_map[column] = "issn"
-
         elif column == "titulo":
             rename_map[column] = "titulo"
-
         elif column == "qualis":
             rename_map[column] = "qualis"
-
         elif column == "tipo":
             rename_map[column] = "tipo"
-
         elif column == "fonte":
             rename_map[column] = "fonte"
-
         elif column == "periodo":
             rename_map[column] = "periodo"
 
@@ -396,11 +384,17 @@ def read_qualis_file(path):
         normalize_tipo
     )
 
-    df["qualis_norm"] = (
+    df["qualis_original"] = (
         df["qualis"]
         .astype(str)
         .str.strip()
         .str.upper()
+    )
+
+    df["qualis_norm"] = df[
+        "qualis_original"
+    ].apply(
+        normalize_qualis
     )
 
     df["periodo_norm"] = (
@@ -419,7 +413,6 @@ class QualisDB:
         qualis_file=None,
         conference_file=None,
     ):
-
         self.qualis_file = (
             Path(qualis_file)
             if qualis_file
@@ -433,32 +426,25 @@ class QualisDB:
         )
 
         if conference_file:
-
             self.conference_file = (
                 Path(conference_file)
             )
-
         else:
-
             self.conference_file = (
                 self.qualis_file.parent
                 / "qualis_conferencias.csv"
             )
 
         if self.conference_file.exists():
-
             self.df_conferences_all = (
                 read_qualis_file(
                     self.conference_file
                 )
             )
-
         else:
-
             self.df_conferences_all = (
                 pd.DataFrame(
-                    columns=
-                    self.df_journals_all.columns
+                    columns=self.df_journals_all.columns
                 )
             )
 
@@ -472,17 +458,31 @@ class QualisDB:
 
         self.df_journals = (
             self.df_journals_all[
-                self.df_journals_all[
-                    "tipo_norm"
-                ] == "journal"
+                (
+                    self.df_journals_all[
+                        "tipo_norm"
+                    ] == "journal"
+                )
+                & (
+                    self.df_journals_all[
+                        "qualis_norm"
+                    ].isin(QUALIS_POINTS)
+                )
             ].copy()
         )
 
         self.df_conferences = (
             self.df_conferences_all[
-                self.df_conferences_all[
-                    "tipo_norm"
-                ] == "conference"
+                (
+                    self.df_conferences_all[
+                        "tipo_norm"
+                    ] == "conference"
+                )
+                & (
+                    self.df_conferences_all[
+                        "qualis_norm"
+                    ].isin(QUALIS_POINTS)
+                )
             ].copy()
         )
 
@@ -495,7 +495,6 @@ class QualisDB:
         for _, row in (
             self.df_journals.iterrows()
         ):
-
             issn = row["issn_norm"]
 
             if issn:
@@ -513,7 +512,6 @@ class QualisDB:
         for _, row in (
             self.df_conferences.iterrows()
         ):
-
             title = row[
                 "titulo_conference_norm"
             ]
@@ -530,7 +528,6 @@ class QualisDB:
             )
 
             for identifier in identifiers:
-
                 if identifier in {
                     title,
                     compact_text(title),
@@ -556,9 +553,7 @@ class QualisDB:
         row,
         match_type,
     ):
-
         if row is None:
-
             return {
                 "qualis": None,
                 "points": 0.0,
@@ -573,14 +568,20 @@ class QualisDB:
             "qualis_norm"
         ]
 
-        points = QUALIS_POINTS.get(
-            qualis,
-            0.0,
-        )
+        if qualis not in QUALIS_POINTS:
+            return {
+                "qualis": None,
+                "points": 0.0,
+                "match_type": match_type,
+                "titulo": row["titulo"],
+                "issn": row["issn"],
+                "fonte": row["fonte"],
+                "periodo": row["periodo"],
+            }
 
         return {
             "qualis": qualis,
-            "points": points,
+            "points": QUALIS_POINTS[qualis],
             "match_type": match_type,
             "titulo": row["titulo"],
             "issn": row["issn"],
@@ -593,13 +594,11 @@ class QualisDB:
         title="",
         issn="",
     ):
-
         issn_norm = normalize_issn(
             issn
         )
 
         if issn_norm:
-
             row = (
                 self.journal_by_issn.get(
                     issn_norm
@@ -617,7 +616,6 @@ class QualisDB:
         )
 
         if title_norm:
-
             row = (
                 self.journal_by_title.get(
                     title_norm
@@ -639,14 +637,12 @@ class QualisDB:
         self,
         title="",
     ):
-
         title_norm = (
             normalize_conference_title(
                 title
             )
         )
 
-        # 1. Título exato.
         row = (
             self.conference_by_title.get(
                 title_norm
@@ -659,38 +655,16 @@ class QualisDB:
                 "title_exact",
             )
 
-        # 2. Correspondência pelos termos
-        # relevantes do título.
-        #
-        # Se houver mais de um candidato,
-        # escolhe o que tiver menos termos
-        # adicionais.
-        #
-        # Exemplo:
-        #
-        # Lattes:
-        # "Simpósio Brasileiro de Sistemas de Informação"
-        #
-        # Qualis:
-        # "Simpósio Brasileiro de Sistemas de Informação (SBSI)"
-        #
-        # e:
-        # "Simpósio Brasileiro de Sistemas de Informação Companion (SBSI-E)"
-        #
-        # O primeiro possui menos termos adicionais,
-        # portanto é escolhido.
         query_tokens = conference_title_tokens(
             title
         )
 
         if query_tokens:
-
             scored_matches = []
 
             for key, candidate in (
                 self.conference_by_title.items()
             ):
-
                 candidate_tokens = (
                     conference_title_tokens(
                         key
@@ -700,7 +674,6 @@ class QualisDB:
                 if query_tokens.issubset(
                     candidate_tokens
                 ):
-
                     extra_tokens = (
                         candidate_tokens
                         - query_tokens
@@ -714,7 +687,6 @@ class QualisDB:
                     )
 
             if scored_matches:
-
                 best_extra_count = min(
                     score[0]
                     for score in scored_matches
@@ -731,7 +703,6 @@ class QualisDB:
                 unique_matches = {}
 
                 for candidate in best_matches:
-
                     identifier = (
                         candidate["titulo"]
                     )
@@ -741,7 +712,6 @@ class QualisDB:
                     ] = candidate
 
                 if len(unique_matches) == 1:
-
                     return self._result(
                         next(
                             iter(
@@ -751,8 +721,6 @@ class QualisDB:
                         "title_tokens",
                     )
 
-        # 3. Acrônimos explícitos entre
-        # parênteses.
         identifiers = (
             extract_parenthetical_acronyms(
                 title
@@ -760,7 +728,6 @@ class QualisDB:
         )
 
         for identifier in identifiers:
-
             candidates = (
                 self.conference_by_identifier.get(
                     identifier,
@@ -774,7 +741,6 @@ class QualisDB:
                     "acronym_exact",
                 )
 
-        # 4. Acrônimo no início do título.
         leading_identifiers = (
             extract_leading_acronym(
                 title
@@ -784,7 +750,6 @@ class QualisDB:
         for identifier in (
             leading_identifiers
         ):
-
             candidates = (
                 self.conference_by_identifier.get(
                     identifier,
@@ -793,20 +758,16 @@ class QualisDB:
             )
 
             if len(candidates) == 1:
-
                 return self._result(
                     candidates[0],
                     "leading_acronym",
                 )
 
-        # 5. Match parcial de título,
-        # somente quando inequívoco.
         matches = []
 
         for key, candidate in (
             self.conference_by_title.items()
         ):
-
             if not key:
                 continue
 
@@ -814,13 +775,11 @@ class QualisDB:
                 title_norm in key
                 or key in title_norm
             ):
-
                 matches.append(
                     candidate
                 )
 
         if len(matches) == 1:
-
             return self._result(
                 matches[0],
                 "title_partial",
@@ -837,26 +796,22 @@ class QualisDB:
         issn="",
         publication_type="",
     ):
-
         tipo = normalize_tipo(
             publication_type
         )
 
         if tipo == "journal":
-
             return self.lookup_journal(
                 title=title,
                 issn=issn,
             )
 
         if tipo == "conference":
-
             return self.lookup_conference(
                 title=title,
             )
 
         if issn:
-
             result = self.lookup_journal(
                 title=title,
                 issn=issn,

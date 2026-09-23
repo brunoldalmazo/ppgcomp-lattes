@@ -5,10 +5,13 @@ from app.config import (
     LATTES_DELAY_SECONDS,
     OUTPUT_DIR,
     REFERENCE_YEAR,
+    PERIOD_YEARS,
 )
 from app.lattes import collect_lattes
 from app.metrics import evaluate_professors
 from app.qualis import QualisDB
+from app.export import export_json
+from app.export_excel import export_excel
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -19,6 +22,12 @@ YEAR_OUTPUT_DIR = (
     ROOT
     / OUTPUT_DIR
     / str(REFERENCE_YEAR)
+)
+
+PERIOD_START = (
+    REFERENCE_YEAR
+    - PERIOD_YEARS
+    + 1
 )
 
 
@@ -152,7 +161,9 @@ def run_evaluation():
 
         input/professores.txt
         -> Lattes
-        -> métricas
+        -> avaliação
+        -> dados.json
+        -> avaliacao_ppgcomp_YYYY.xlsx
     """
 
     lattes_data = collect_all_lattes()
@@ -171,6 +182,8 @@ def run_evaluation():
     resultado = evaluate_professors(
         lattes_data=lattes_data,
         qualis_db=QualisDB(),
+        start_year=PERIOD_START,
+        end_year=REFERENCE_YEAR,
     )
 
     professors = resultado[
@@ -202,6 +215,26 @@ def run_evaluation():
     print(
         f"Pendências: "
         f"{len(resultado['pending'])}"
+    )
+
+    output_file = export_json(
+        resultado=resultado,
+        lattes_data=lattes_data,
+        start_year=PERIOD_START,
+        end_year=REFERENCE_YEAR,
+    )
+
+    excel_file = export_excel(
+        resultado=resultado
+    )
+
+    print()
+    print(
+        f"JSON salvo em: {output_file}"
+    )
+
+    print(
+        f"Excel salvo em: {excel_file}"
     )
 
     return resultado
