@@ -33,7 +33,7 @@ MIN_SCORE = float(
 LATTES_UPDATE_LIMIT_DAYS = int(
     os.getenv(
         "LATTES_UPDATE_LIMIT_DAYS",
-        "365"
+        "30"
     )
 )
 
