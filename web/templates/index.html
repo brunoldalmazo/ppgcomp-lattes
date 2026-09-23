@@ -3,9 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PPGComp — Avaliação Docente</title>
+    <title>Avaliação PPGComp {{ data.configuracao.reference_year }}</title>
 
     <style>
+        :root {
+            --bg: #f5f7fb;
+            --card: #ffffff;
+            --text: #1f2937;
+            --muted: #6b7280;
+            --border: #e5e7eb;
+            --primary: #2563eb;
+            --success: #15803d;
+            --danger: #b91c1c;
+        }
+
         * {
             box-sizing: border-box;
         }
@@ -13,27 +24,28 @@
         body {
             margin: 0;
             font-family: Arial, Helvetica, sans-serif;
-            background: #f4f6f8;
-            color: #1f2937;
+            background: var(--bg);
+            color: var(--text);
         }
 
         header {
-            background: #1f4e78;
+            background: #111827;
             color: white;
-            padding: 24px 32px;
+            padding: 28px 40px;
         }
 
         header h1 {
-            margin: 0 0 6px 0;
-            font-size: 26px;
+            margin: 0 0 6px;
+            font-size: 28px;
         }
 
         header p {
             margin: 0;
+            color: #d1d5db;
         }
 
         main {
-            max-width: 1400px;
+            max-width: 1500px;
             margin: 30px auto;
             padding: 0 24px;
         }
@@ -42,79 +54,172 @@
             display: grid;
             grid-template-columns: repeat(4, 1fr);
             gap: 18px;
-            margin-bottom: 30px;
+            margin-bottom: 28px;
         }
 
         .card {
-            background: white;
-            border-radius: 10px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
             padding: 22px;
-            box-shadow: 0 2px 8px rgba(0,0,0,.08);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
         }
 
-        .card-label {
+        .card-title {
+            color: var(--muted);
             font-size: 14px;
-            color: #6b7280;
             margin-bottom: 8px;
         }
 
         .card-value {
             font-size: 30px;
             font-weight: bold;
-            color: #1f4e78;
         }
 
-        .section {
+        .card-subtitle {
+            margin-top: 5px;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 18px;
+            flex-wrap: wrap;
+        }
+
+        input,
+        select {
+            padding: 11px 13px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
             background: white;
-            border-radius: 10px;
-            padding: 24px;
-            box-shadow: 0 2px 8px rgba(0,0,0,.08);
-            overflow-x: auto;
+            font-size: 14px;
         }
 
-        .section h2 {
-            margin-top: 0;
+        #search {
+            flex: 1;
+            min-width: 250px;
+        }
+
+        .table-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 14px;
+            min-width: 1100px;
         }
 
-        th, td {
-            padding: 11px 10px;
-            border-bottom: 1px solid #e5e7eb;
+        th,
+        td {
+            padding: 13px 12px;
+            border-bottom: 1px solid var(--border);
             text-align: center;
             white-space: nowrap;
         }
 
         th {
-            background: #eef3f7;
+            background: #f9fafb;
+            font-size: 12px;
+            color: #4b5563;
+            text-transform: uppercase;
         }
 
-        th:first-child,
-        td:first-child {
+        td {
+            font-size: 13px;
+        }
+
+        th:nth-child(2),
+        td:nth-child(2) {
             text-align: left;
         }
 
-        .atende {
-            color: #15803d;
+        tbody tr:hover {
+            background: #f9fafb;
+        }
+
+        .rank {
+            font-weight: bold;
+            color: var(--muted);
+        }
+
+        .score {
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .progress-container {
+            width: 100px;
+            height: 7px;
+            background: #e5e7eb;
+            border-radius: 20px;
+            overflow: hidden;
+            margin-top: 6px;
+        }
+
+        .progress {
+            height: 100%;
+            background: var(--primary);
+            border-radius: 20px;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 5px 9px;
+            border-radius: 999px;
+            font-size: 11px;
             font-weight: bold;
         }
 
-        .nao-atende {
-            color: #b91c1c;
-            font-weight: bold;
+        .status-ok {
+            background: #dcfce7;
+            color: var(--success);
+        }
+
+        .status-no {
+            background: #fee2e2;
+            color: var(--danger);
+        }
+
+        .empty {
+            text-align: center;
+            padding: 30px;
+            color: var(--muted);
+        }
+
+        footer {
+            text-align: center;
+            color: var(--muted);
+            font-size: 12px;
+            padding: 30px;
         }
 
         @media (max-width: 900px) {
             .cards {
                 grid-template-columns: repeat(2, 1fr);
             }
+
+            header {
+                padding: 22px;
+            }
+
+            main {
+                padding: 0 14px;
+            }
         }
 
-        @media (max-width: 600px) {
+        @media (max-width: 550px) {
             .cards {
                 grid-template-columns: 1fr;
             }
@@ -125,103 +230,249 @@
 <body>
 
 <header>
-    <h1>PPGComp — Avaliação Docente</h1>
+    <h1>Avaliação PPGComp {{ data.configuracao.reference_year }}</h1>
+
     <p>
-        Produção científica e pontuação Qualis —
-        {{ data.configuracao.reference_year }}
+        Produção científica e coautorias —
+        período {{ data.configuracao.period_start }}–{{ data.configuracao.reference_year }}
     </p>
 </header>
 
 <main>
 
-    <div class="cards">
+    <section class="cards">
 
         <div class="card">
-            <div class="card-label">Professores</div>
-            <div class="card-value">{{ data.professors | length }}</div>
+            <div class="card-title">Professores</div>
+            <div class="card-value">{{ data.professors|length }}</div>
+            <div class="card-subtitle">Pesquisadores avaliados</div>
         </div>
 
         <div class="card">
-            <div class="card-label">Publicações distintas</div>
-            <div class="card-value">{{ data.publications | length }}</div>
+            <div class="card-title">Publicações distintas</div>
+            <div class="card-value">{{ data.publications|length }}</div>
+            <div class="card-subtitle">Artigos e trabalhos no período</div>
         </div>
 
         <div class="card">
-            <div class="card-label">Registros de coautoria</div>
-            <div class="card-value">
-                {{ data.coauthorships.values() | map('length') | sum }}
-            </div>
+            <div class="card-title">Registros de coautoria</div>
+            <div class="card-value">{{ data.coauthorships|length }}</div>
+            <div class="card-subtitle">Relações entre pesquisadores</div>
         </div>
 
         <div class="card">
-            <div class="card-label">Pendências</div>
-            <div class="card-value">{{ data.pending | length }}</div>
+            <div class="card-title">Pendências</div>
+            <div class="card-value">{{ data.pending|length }}</div>
+            <div class="card-subtitle">Publicações sem classificação Qualis</div>
         </div>
+
+    </section>
+
+    <div class="toolbar">
+
+        <input
+            type="text"
+            id="search"
+            placeholder="Buscar professor..."
+        >
+
+        <select id="statusFilter">
+            <option value="todos">Todos os status</option>
+            <option value="ATENDE">Atende</option>
+            <option value="NÃO ATENDE">Não atende</option>
+        </select>
 
     </div>
 
-    <div class="section">
+    <section class="table-card">
 
-        <h2>Professores</h2>
+        <div class="table-wrapper">
 
-        <table>
+            <table id="professorsTable">
 
-            <thead>
-                <tr>
-                    <th>Professor</th>
-                    <th>Atualização Lattes</th>
-                    <th>A1</th>
-                    <th>A2</th>
-                    <th>A3</th>
-                    <th>A4</th>
-                    <th>B1</th>
-                    <th>B2</th>
-                    <th>B3</th>
-                    <th>B4</th>
-                    <th>C</th>
-                    <th>Total</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Professor</th>
+                        <th>Atualização Lattes</th>
+                        <th>A1</th>
+                        <th>A2</th>
+                        <th>A3</th>
+                        <th>A4</th>
+                        <th>A5</th>
+                        <th>A6</th>
+                        <th>A7</th>
+                        <th>A8</th>
+                        <th>Total</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
 
-            <tbody>
+                <tbody>
 
-            {% for professor in data.professors.values() | sort(attribute='professor') %}
+                    {% for professor in data.professors.values()|sort(attribute='total', reverse=true) %}
 
-                <tr>
-                    <td>{{ professor.professor }}</td>
-                    <td>{{ professor.lattes_update }}</td>
+                    <tr
+                        data-name="{{ professor.professor|lower }}"
+                        data-status="{{ professor.status }}"
+                    >
 
-                    <td>{{ professor.counts.A1 }}</td>
-                    <td>{{ professor.counts.A2 }}</td>
-                    <td>{{ professor.counts.A3 }}</td>
-                    <td>{{ professor.counts.A4 }}</td>
-                    <td>{{ professor.counts.B1 }}</td>
-                    <td>{{ professor.counts.B2 }}</td>
-                    <td>{{ professor.counts.B3 }}</td>
-                    <td>{{ professor.counts.B4 }}</td>
-                    <td>{{ professor.counts.C }}</td>
+                        <td class="rank">
+                            {{ loop.index }}
+                        </td>
 
-                    <td>
-                        <strong>
+                        <td>
+                            <strong
+                                class="professor-name"
+                                data-update="{{ professor.lattes_update_date }}"
+                            >
+                                {{ professor.professor }}
+                            </strong>
+
+                            <div class="progress-container">
+                                <div
+                                    class="progress"
+                                    style="width: {{ [professor.total / data.configuracao.min_score * 100, 100]|min }}%;"
+                                ></div>
+                            </div>
+                        </td>
+
+                        <td>
+                            {{ professor.lattes_update or "-" }}
+                        </td>
+
+                        <td>{{ professor.counts.get('A1', 0) }}</td>
+                        <td>{{ professor.counts.get('A2', 0) }}</td>
+                        <td>{{ professor.counts.get('A3', 0) }}</td>
+                        <td>{{ professor.counts.get('A4', 0) }}</td>
+
+                        <td>{{ professor.counts.get('B1', 0) }}</td>
+                        <td>{{ professor.counts.get('B2', 0) }}</td>
+                        <td>{{ professor.counts.get('B3', 0) }}</td>
+                        <td>{{ professor.counts.get('B4', 0) }}</td>
+
+                        <td class="score">
                             {{ "%.3f"|format(professor.total) }}
-                        </strong>
-                    </td>
+                        </td>
 
-                    <td class="{% if professor.status == 'ATENDE' %}atende{% else %}nao-atende{% endif %}">
-                        {{ professor.status }}
-                    </td>
-                </tr>
+                        <td>
+                            {% if professor.status == "ATENDE" %}
 
-            {% endfor %}
+                                <span class="status status-ok">
+                                    ATENDE
+                                </span>
 
-            </tbody>
+                            {% else %}
 
-        </table>
+                                <span class="status status-no">
+                                    NÃO ATENDE
+                                </span>
 
-    </div>
+                            {% endif %}
+                        </td>
+
+                    </tr>
+
+                    {% else %}
+
+                    <tr>
+                        <td colspan="13" class="empty">
+                            Nenhum professor encontrado.
+                        </td>
+                    </tr>
+
+                    {% endfor %}
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </section>
 
 </main>
+
+<footer>
+    Avaliação PPGComp — {{ data.configuracao.reference_year }}
+</footer>
+
+<script>
+    const searchInput = document.getElementById("search");
+    const statusFilter = document.getElementById("statusFilter");
+
+    const rows = document.querySelectorAll(
+        "#professorsTable tbody tr[data-name]"
+    );
+
+    function filterTable() {
+
+        const search =
+            searchInput.value.toLowerCase().trim();
+
+        const status =
+            statusFilter.value;
+
+        rows.forEach(row => {
+
+            const name =
+                row.dataset.name;
+
+            const rowStatus =
+                row.dataset.status;
+
+            const matchesName =
+                !search || name.includes(search);
+
+            const matchesStatus =
+                status === "todos" ||
+                rowStatus === status;
+
+            row.style.display =
+                matchesName && matchesStatus
+                    ? ""
+                    : "none";
+        });
+    }
+
+    searchInput.addEventListener(
+        "input",
+        filterTable
+    );
+
+    statusFilter.addEventListener(
+        "change",
+        filterTable
+    );
+
+    /*
+     * Lattes atualizado há mais de 30 dias:
+     * nome do professor fica vermelho.
+     */
+    document.querySelectorAll(".professor-name").forEach(name => {
+
+        const updateDate = name.dataset.update;
+
+        if (!updateDate) {
+            return;
+        }
+
+        const updated = new Date(
+            updateDate + "T00:00:00"
+        );
+
+        const today = new Date();
+
+        const diffDays = Math.floor(
+            (today - updated) /
+            (1000 * 60 * 60 * 24)
+        );
+
+        if (diffDays > 30) {
+            name.style.color = "#b91c1c";
+        }
+    });
+</script>
 
 </body>
 </html>
