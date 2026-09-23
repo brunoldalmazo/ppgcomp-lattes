@@ -2,7 +2,7 @@
   "configuracao": {
     "reference_year": 2026,
     "min_score": 4.0,
-    "lattes_update_limit_days": 365,
+    "lattes_update_limit_days": 30,
     "qualis_area": "Computação",
     "qualis_file": "/home/dalmazo/scraper_lattes/qualis/qualis.csv",
     "weights": {
