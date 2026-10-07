@@ -212,7 +212,7 @@
         table {
             width: 100%;
             border-collapse: collapse;
-            min-width: 1100px;
+            min-width: 900px;
         }
 
         th,
@@ -486,7 +486,15 @@
             background: #f9fafb;
             border: 1px solid var(--border);
             border-radius: 8px;
-            min-width: 210px;
+            min-width: 230px;
+        }
+
+        .qualis-editor-label {
+            display: block;
+            font-size: 10px;
+            font-weight: bold;
+            color: var(--muted);
+            margin-bottom: 4px;
         }
 
         .qualis-editor select {
@@ -902,10 +910,6 @@
                     <th>A2</th>
                     <th>A3</th>
                     <th>A4</th>
-                    <th>A5</th>
-                    <th>A6</th>
-                    <th>A7</th>
-                    <th>A8</th>
                     <th>Total</th>
                     <th>Status</th>
 
@@ -919,7 +923,7 @@
                 <tr>
 
                     <td
-                        colspan="13"
+                        colspan="9"
                         class="loading"
                     >
                         Carregando avaliação...
@@ -1303,7 +1307,7 @@
                 <tr>
 
                     <td
-                        colspan="13"
+                        colspan="9"
                         class="empty"
                     >
                         Nenhum professor encontrado.
@@ -1451,26 +1455,6 @@
 
                             <td>
                                 ${counts.A4 || 0}
-                            </td>
-
-
-                            <td>
-                                ${counts.A5 || 0}
-                            </td>
-
-
-                            <td>
-                                ${counts.A6 || 0}
-                            </td>
-
-
-                            <td>
-                                ${counts.A7 || 0}
-                            </td>
-
-
-                            <td>
-                                ${counts.A8 || 0}
                             </td>
 
 
@@ -1722,6 +1706,11 @@
             "";
 
 
+        const manualScope =
+            publication.qualis_manual_scope ||
+            "publication";
+
+
         const note =
             publication.qualis_manual_note ||
             "";
@@ -1757,11 +1746,54 @@
                 id="qualisEditor${index}"
             >
 
+                <label
+                    class="qualis-editor-label"
+                    for="qualisSelect${index}"
+                >
+                    Qualis
+                </label>
+
                 <select
                     id="qualisSelect${index}"
                 >
 
                     ${options}
+
+                </select>
+
+
+                <label
+                    class="qualis-editor-label"
+                    for="qualisScope${index}"
+                >
+                    Aplicar a
+                </label>
+
+                <select
+                    id="qualisScope${index}"
+                >
+
+                    <option
+                        value="publication"
+                        ${
+                            manualScope === "publication"
+                                ? "selected"
+                                : ""
+                        }
+                    >
+                        Este trabalho
+                    </option>
+
+                    <option
+                        value="vehicle"
+                        ${
+                            manualScope === "vehicle"
+                                ? "selected"
+                                : ""
+                        }
+                    >
+                        Todo o veículo
+                    </option>
 
                 </select>
 
@@ -1901,6 +1933,12 @@
             );
 
 
+        const scopeSelect =
+            document.getElementById(
+                `qualisScope${index}`
+            );
+
+
         const noteInput =
             document.getElementById(
                 `qualisNote${index}`
@@ -1916,6 +1954,12 @@
             select.value;
 
 
+        const scope =
+            scopeSelect
+                ? scopeSelect.value
+                : "publication";
+
+
         const note =
             noteInput
                 ? noteInput.value.trim()
@@ -1923,7 +1967,9 @@
 
 
         configStatus.textContent =
-            "Salvando classificação manual...";
+            scope === "vehicle"
+                ? "Salvando classificação manual para todo o veículo..."
+                : "Salvando classificação manual para este trabalho...";
 
 
         try {
@@ -1949,7 +1995,8 @@
                                     publication.year ||
                                     null,
                                 qualis,
-                                note
+                                note,
+                                scope
                             }
                         )
                     }
@@ -1987,7 +2034,9 @@
 
 
             configStatus.textContent =
-                `Qualis manual ${qualis} aplicado e avaliação recalculada.`;
+                scope === "vehicle"
+                    ? `Qualis manual ${qualis} aplicado ao veículo e avaliação recalculada.`
+                    : `Qualis manual ${qualis} aplicado ao trabalho e avaliação recalculada.`;
 
         }
 
@@ -2020,8 +2069,15 @@
             container._publication;
 
 
+        const manualScope =
+            publication.qualis_manual_scope ||
+            "publication";
+
+
         configStatus.textContent =
-            "Restaurando classificação automática...";
+            manualScope === "vehicle"
+                ? "Removendo classificação manual do veículo..."
+                : "Restaurando classificação automática...";
 
 
         try {
@@ -2045,7 +2101,9 @@
                                     "",
                                 year:
                                     publication.year ||
-                                    null
+                                    null,
+                                scope:
+                                    manualScope
                             }
                         )
                     }
@@ -2079,7 +2137,9 @@
 
 
             configStatus.textContent =
-                "Classificação automática restaurada e avaliação recalculada.";
+                manualScope === "vehicle"
+                    ? "Classificação manual do veículo removida e avaliação recalculada."
+                    : "Classificação automática restaurada e avaliação recalculada.";
 
         }
 
@@ -2429,6 +2489,22 @@
                             publication.qualis_manual;
 
 
+                        const manualScope =
+                            publication.qualis_manual_scope ||
+                            "";
+
+
+                        const qualisSource =
+                            manual
+                                ? manualScope === "vehicle"
+                                    ? "Manual · todo o veículo"
+                                    : `Manual · oficial ${escapeHtml(
+                                        publication.qualis_official ||
+                                        "-"
+                                    )}`
+                                : "Automático";
+
+
                         const qualisHtml =
                             qualis
 
@@ -2454,14 +2530,7 @@
                                     <span
                                         class="qualis-source"
                                     >
-                                        ${
-                                            manual
-                                                ? `Manual · oficial ${escapeHtml(
-                                                    publication.qualis_official ||
-                                                    "-"
-                                                )}`
-                                                : "Automático"
-                                        }
+                                        ${qualisSource}
                                     </span>
 
 
@@ -2948,7 +3017,7 @@
             <tr>
 
                 <td
-                    colspan="13"
+                    colspan="9"
                     class="loading"
                 >
                     Recalculando avaliação...
@@ -3041,7 +3110,7 @@
                 <tr>
 
                     <td
-                        colspan="13"
+                        colspan="9"
                         class="empty"
                     >
                         Erro ao carregar avaliação:
@@ -3173,10 +3242,12 @@
                 let mensagem =
                     "Erro ao gerar Excel.";
 
+
                 try {
 
                     const resultado =
                         await response.json();
+
 
                     mensagem =
                         resultado.erro ||

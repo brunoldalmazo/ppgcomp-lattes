@@ -1,6 +1,9 @@
 {
-  "doi:10.1109/hpsr68369.2026.11615180": {
-    "qualis": "A2",
-    "note": ""
+  "publications": {},
+  "vehicles": {
+    "event:iccsa": {
+      "qualis": "A2",
+      "note": "ICCSA classificado manualmente como A2"
+    }
   }
 }

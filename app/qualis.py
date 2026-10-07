@@ -1,22 +1,18 @@
+import json
 import re
 import unicodedata
 from pathlib import Path
 
 import pandas as pd
 
-from .config import QUALIS_FILE
+from app.config import WEIGHTS
 
 
-QUALIS_POINTS = {
-    "A1": 1.000,
-    "A2": 0.875,
-    "A3": 0.750,
-    "A4": 0.625,
-    "A5": 0.500,
-    "A6": 0.375,
-    "A7": 0.250,
-    "A8": 0.125,
-}
+QUALISCOMP_FILE = (
+    Path(__file__).resolve().parent.parent
+    / "input"
+    / "qualiscomp_indice.json"
+)
 
 
 QUALIS_CONVERSION = {
@@ -70,6 +66,7 @@ def normalize_tipo(value):
     value = normalize_text(value)
 
     if value in {
+        "p",
         "article",
         "journal",
         "periodico",
@@ -79,6 +76,7 @@ def normalize_tipo(value):
         return "journal"
 
     if value in {
+        "e",
         "conference",
         "evento",
         "conferencia",
@@ -284,8 +282,8 @@ def conference_title_tokens(value):
         "international",
         "na",
         "no",
-        "on",
         "of",
+        "on",
         "os",
         "the",
         "um",
@@ -308,13 +306,195 @@ def normalize_qualis(value):
         .upper()
     )
 
-    if qualis in QUALIS_POINTS:
+    if qualis in WEIGHTS:
         return qualis
 
     return QUALIS_CONVERSION.get(
         qualis,
         "",
     )
+
+
+def _empty_qualis_dataframe():
+    return pd.DataFrame(
+        columns=[
+            "issn",
+            "issns_norm",
+            "titulo",
+            "qualis",
+            "tipo",
+            "fonte",
+            "periodo",
+            "siglas",
+            "issn_norm",
+            "titulo_norm",
+            "titulo_conference_norm",
+            "tipo_norm",
+            "qualis_original",
+            "qualis_norm",
+            "periodo_norm",
+        ]
+    )
+
+
+def read_qualis_json(path):
+    path = Path(path)
+
+    with path.open(
+        "r",
+        encoding="utf-8",
+    ) as file:
+        data = json.load(file)
+
+    snapshot = str(
+        data.get(
+            "snapshot",
+            "",
+        )
+    ).strip()
+
+    vehicles = data.get(
+        "veiculos",
+        [],
+    )
+
+    rows = []
+
+    for vehicle in vehicles:
+        if not isinstance(
+            vehicle,
+            dict,
+        ):
+            continue
+
+        tipo = normalize_tipo(
+            vehicle.get(
+                "t",
+                "",
+            )
+        )
+
+        if tipo not in {
+            "journal",
+            "conference",
+        }:
+            continue
+
+        titulo = str(
+            vehicle.get(
+                "n",
+                "",
+            )
+            or ""
+        ).strip()
+
+        qualis = str(
+            vehicle.get(
+                "e",
+                "",
+            )
+            or ""
+        ).strip().upper()
+
+        siglas = str(
+            vehicle.get(
+                "a",
+                "",
+            )
+            or ""
+        ).strip()
+
+        issns = vehicle.get(
+            "s2",
+            [],
+        )
+
+        if not isinstance(
+            issns,
+            list,
+        ):
+            issns = [
+                issns
+            ]
+
+        normalized_issns = []
+
+        for issn in issns:
+            issn_norm = normalize_issn(
+                issn
+            )
+
+            if (
+                issn_norm
+                and issn_norm
+                not in normalized_issns
+            ):
+                normalized_issns.append(
+                    issn_norm
+                )
+
+        rows.append(
+            {
+                "issn": (
+                    normalized_issns[0]
+                    if normalized_issns
+                    else ""
+                ),
+                "issns_norm": normalized_issns,
+                "titulo": titulo,
+                "qualis": qualis,
+                "tipo": tipo,
+                "fonte": "QualisComp",
+                "periodo": snapshot,
+                "siglas": siglas,
+            }
+        )
+
+    if not rows:
+        return _empty_qualis_dataframe()
+
+    df = pd.DataFrame(
+        rows
+    )
+
+    df["issn_norm"] = df["issn"].apply(
+        normalize_issn
+    )
+
+    df["titulo_norm"] = df["titulo"].apply(
+        normalize_text
+    )
+
+    df["titulo_conference_norm"] = (
+        df["titulo"].apply(
+            normalize_conference_title
+        )
+    )
+
+    df["tipo_norm"] = df["tipo"].apply(
+        normalize_tipo
+    )
+
+    df["qualis_original"] = (
+        df["qualis"]
+        .astype(str)
+        .str.strip()
+        .str.upper()
+    )
+
+    df["qualis_norm"] = df[
+        "qualis_original"
+    ].apply(
+        normalize_qualis
+    )
+
+    df["periodo_norm"] = (
+        df["periodo"]
+        .astype(str)
+        .str.strip()
+    )
+
+    return df
 
 
 def read_qualis_file(path):
@@ -366,6 +546,9 @@ def read_qualis_file(path):
     if "issn" not in df.columns:
         df["issn"] = ""
 
+    if "siglas" not in df.columns:
+        df["siglas"] = ""
+
     df["issn_norm"] = df["issn"].apply(
         normalize_issn
     )
@@ -403,6 +586,17 @@ def read_qualis_file(path):
         .str.strip()
     )
 
+    if "issns_norm" not in df.columns:
+        df["issns_norm"] = df[
+            "issn_norm"
+        ].apply(
+            lambda value: (
+                [value]
+                if value
+                else []
+            )
+        )
+
     return df
 
 
@@ -416,36 +610,71 @@ class QualisDB:
         self.qualis_file = (
             Path(qualis_file)
             if qualis_file
-            else Path(QUALIS_FILE)
+            else QUALISCOMP_FILE
         )
 
-        self.df_journals_all = (
-            read_qualis_file(
-                self.qualis_file
-            )
+        self.conference_file = (
+            Path(conference_file)
+            if conference_file
+            else None
         )
 
-        if conference_file:
-            self.conference_file = (
-                Path(conference_file)
-            )
-        else:
-            self.conference_file = (
-                self.qualis_file.parent
-                / "qualis_conferencias.csv"
+        if (
+            self.qualis_file
+            == QUALISCOMP_FILE
+            and self.qualis_file.suffix.lower()
+            == ".json"
+        ):
+            self.df_all = (
+                read_qualis_json(
+                    self.qualis_file
+                )
             )
 
-        if self.conference_file.exists():
+            self.df_journals_all = (
+                self.df_all[
+                    self.df_all[
+                        "tipo_norm"
+                    ]
+                    == "journal"
+                ].copy()
+            )
+
             self.df_conferences_all = (
+                self.df_all[
+                    self.df_all[
+                        "tipo_norm"
+                    ]
+                    == "conference"
+                ].copy()
+            )
+
+        else:
+            self.df_journals_all = (
                 read_qualis_file(
-                    self.conference_file
+                    self.qualis_file
                 )
             )
-        else:
-            self.df_conferences_all = (
-                pd.DataFrame(
-                    columns=self.df_journals_all.columns
+
+            if self.conference_file:
+                self.df_conferences_all = (
+                    read_qualis_file(
+                        self.conference_file
+                    )
                 )
+            else:
+                self.df_conferences_all = (
+                    pd.DataFrame(
+                        columns=self.df_journals_all.columns
+                    )
+                )
+
+            self.df_all = pd.concat(
+                [
+                    self.df_journals_all,
+                    self.df_conferences_all,
+                ],
+                ignore_index=True,
             )
 
         self.df = pd.concat(
@@ -461,12 +690,13 @@ class QualisDB:
                 (
                     self.df_journals_all[
                         "tipo_norm"
-                    ] == "journal"
+                    ]
+                    == "journal"
                 )
                 & (
                     self.df_journals_all[
                         "qualis_norm"
-                    ].isin(QUALIS_POINTS)
+                    ].isin(WEIGHTS)
                 )
             ].copy()
         )
@@ -476,12 +706,13 @@ class QualisDB:
                 (
                     self.df_conferences_all[
                         "tipo_norm"
-                    ] == "conference"
+                    ]
+                    == "conference"
                 )
                 & (
                     self.df_conferences_all[
                         "qualis_norm"
-                    ].isin(QUALIS_POINTS)
+                    ].isin(WEIGHTS)
                 )
             ].copy()
         )
@@ -495,12 +726,24 @@ class QualisDB:
         for _, row in (
             self.df_journals.iterrows()
         ):
-            issn = row["issn_norm"]
+            issns = row.get(
+                "issns_norm",
+                [],
+            )
 
-            if issn:
-                self.journal_by_issn[
-                    issn
-                ] = row
+            if not isinstance(
+                issns,
+                list,
+            ):
+                issns = [
+                    issns
+                ]
+
+            for issn in issns:
+                if issn:
+                    self.journal_by_issn[
+                        issn
+                    ] = row
 
             title = row["titulo_norm"]
 
@@ -526,6 +769,32 @@ class QualisDB:
                     row["titulo"]
                 )
             )
+
+            siglas = str(
+                row.get(
+                    "siglas",
+                    "",
+                )
+                or ""
+            )
+
+            for sigla in re.split(
+                r"[·,;/|]+",
+                siglas,
+            ):
+                sigla = sigla.strip()
+
+                if not sigla:
+                    continue
+
+                compact = compact_text(
+                    sigla
+                )
+
+                if compact:
+                    identifiers.add(
+                        compact
+                    )
 
             for identifier in identifiers:
                 if identifier in {
@@ -568,7 +837,7 @@ class QualisDB:
             "qualis_norm"
         ]
 
-        if qualis not in QUALIS_POINTS:
+        if qualis not in WEIGHTS:
             return {
                 "qualis": None,
                 "points": 0.0,
@@ -581,7 +850,10 @@ class QualisDB:
 
         return {
             "qualis": qualis,
-            "points": QUALIS_POINTS[qualis],
+            "points": WEIGHTS.get(
+                qualis,
+                0.0,
+            ),
             "match_type": match_type,
             "titulo": row["titulo"],
             "issn": row["issn"],

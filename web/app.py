@@ -21,8 +21,11 @@ from app.export_excel import (
 from app.qualis_overrides import (
     VALID_QUALIS,
     get_override,
+    get_vehicle_override,
     remove_override,
+    remove_vehicle_override,
     set_override,
+    set_vehicle_override,
 )
 from app.publication_flags import (
     get_student_flag,
@@ -494,6 +497,26 @@ def api_set_qualis_override():
             }
         ), 400
 
+    scope = str(
+        payload.get(
+            "scope",
+            "publication",
+        )
+    ).strip().lower()
+
+    if scope not in {
+        "publication",
+        "vehicle",
+    }:
+        return jsonify(
+            {
+                "erro": (
+                    "Escopo inválido. "
+                    "Use publication ou vehicle."
+                )
+            }
+        ), 400
+
     publication = find_publication(
         data=data,
         doi=payload.get(
@@ -523,6 +546,45 @@ def api_set_qualis_override():
         )
     ).strip()
 
+    if scope == "vehicle":
+
+        try:
+            override = set_vehicle_override(
+                publication=publication,
+                qualis=qualis,
+                note=note,
+            )
+
+        except ValueError as exc:
+            return jsonify(
+                {
+                    "erro": str(exc)
+                }
+            ), 400
+
+        return jsonify(
+            {
+                "ok": True,
+                "mensagem": (
+                    "Classificação manual do "
+                    "veículo salva."
+                ),
+                "scope": "vehicle",
+                "title": publication.get(
+                    "title"
+                ),
+                "venue": publication.get(
+                    "venue"
+                ),
+                "qualis_manual": override[
+                    "qualis"
+                ],
+                "note": override[
+                    "note"
+                ],
+            }
+        )
+
     override = set_override(
         publication=publication,
         qualis=qualis,
@@ -535,6 +597,7 @@ def api_set_qualis_override():
             "mensagem": (
                 "Classificação manual salva."
             ),
+            "scope": "publication",
             "doi": publication.get(
                 "doi"
             ),
@@ -571,6 +634,26 @@ def api_remove_qualis_override():
     ):
         payload = {}
 
+    scope = str(
+        payload.get(
+            "scope",
+            "publication",
+        )
+    ).strip().lower()
+
+    if scope not in {
+        "publication",
+        "vehicle",
+    }:
+        return jsonify(
+            {
+                "erro": (
+                    "Escopo inválido. "
+                    "Use publication ou vehicle."
+                )
+            }
+        ), 400
+
     publication = find_publication(
         data=data,
         doi=payload.get(
@@ -593,6 +676,28 @@ def api_remove_qualis_override():
             }
         ), 404
 
+    if scope == "vehicle":
+
+        removed = remove_vehicle_override(
+            publication
+        )
+
+        return jsonify(
+            {
+                "ok": True,
+                "removed": removed,
+                "scope": "vehicle",
+                "mensagem": (
+                    "Classificação automática "
+                    "do veículo restaurada."
+                    if removed
+                    else
+                    "Nenhum override manual "
+                    "do veículo estava cadastrado."
+                ),
+            }
+        )
+
     removed = remove_override(
         publication
     )
@@ -601,6 +706,7 @@ def api_remove_qualis_override():
         {
             "ok": True,
             "removed": removed,
+            "scope": "publication",
             "mensagem": (
                 "Classificação automática "
                 "restaurada."
@@ -642,7 +748,11 @@ def api_get_qualis_override():
             }
         ), 404
 
-    override = get_override(
+    publication_override = get_override(
+        publication
+    )
+
+    vehicle_override = get_vehicle_override(
         publication
     )
 
@@ -652,7 +762,16 @@ def api_get_qualis_override():
             "qualis_official": publication.get(
                 "qualis"
             ),
-            "override": override,
+            "publication_override": (
+                publication_override
+            ),
+            "vehicle_override": (
+                vehicle_override
+            ),
+            "override": (
+                publication_override
+                or vehicle_override
+            ),
         }
     )
 

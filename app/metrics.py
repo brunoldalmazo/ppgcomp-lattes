@@ -8,6 +8,7 @@ from app.config import (
 from app.qualis import QualisDB
 from app.qualis_overrides import (
     get_override,
+    get_vehicle_override,
     load_overrides,
 )
 from app.publication_flags import (
@@ -325,30 +326,62 @@ def enrich_publication(
         )
 
     # -------------------------------------------------
-    # Qualis manual
+    # Overrides manuais
     # -------------------------------------------------
 
-    override = get_override(
+    publication_override = get_override(
+        publication,
+        overrides=overrides,
+    )
+
+    vehicle_override = get_vehicle_override(
         publication,
         overrides=overrides,
     )
 
     manual_qualis = None
     manual_note = ""
+    manual_scope = ""
 
-    if override:
+    # Override específico da publicação tem prioridade
+    # sobre override do veículo.
+
+    if publication_override:
 
         manual_qualis = (
-            override.get(
+            publication_override.get(
                 "qualis"
             )
         )
 
         manual_note = (
-            override.get(
+            publication_override.get(
                 "note",
                 "",
             )
+        )
+
+        manual_scope = (
+            "publication"
+        )
+
+    elif vehicle_override:
+
+        manual_qualis = (
+            vehicle_override.get(
+                "qualis"
+            )
+        )
+
+        manual_note = (
+            vehicle_override.get(
+                "note",
+                "",
+            )
+        )
+
+        manual_scope = (
+            "vehicle"
         )
 
     # -------------------------------------------------
@@ -420,8 +453,10 @@ def enrich_publication(
 
     enriched.update(
         {
-            # Qualis oficial
+            # Qualis aplicado
             "qualis": applied_qualis,
+
+            # Qualis oficial
             "qualis_official": (
                 official_qualis
             ),
@@ -435,6 +470,9 @@ def enrich_publication(
             ),
             "qualis_manual_note": (
                 manual_note
+            ),
+            "qualis_manual_scope": (
+                manual_scope
             ),
 
             # Qualis aplicado
