@@ -110,7 +110,7 @@ def save_flags(flags):
     )
 
 
-def get_student_flag(
+def get_student_manual_flag(
     publication,
     flags=None,
 ):
@@ -129,14 +129,38 @@ def get_student_flag(
         value,
         dict,
     ):
+        return None
+
+    if "student_author_manual" in value:
+        return bool(
+            value.get(
+                "student_author_manual"
+            )
+        )
+
+    if "student_author" in value:
+        return bool(
+            value.get(
+                "student_author"
+            )
+        )
+
+    return None
+
+
+def get_student_flag(
+    publication,
+    flags=None,
+):
+    manual_flag = get_student_manual_flag(
+        publication=publication,
+        flags=flags,
+    )
+
+    if manual_flag is None:
         return False
 
-    return bool(
-        value.get(
-            "student_author",
-            False,
-        )
-    )
+    return manual_flag
 
 
 def set_student_flag(
@@ -152,7 +176,10 @@ def set_student_flag(
     flags[key] = {
         "student_author": bool(
             student_author
-        )
+        ),
+        "student_author_manual": bool(
+            student_author
+        ),
     }
 
     save_flags(

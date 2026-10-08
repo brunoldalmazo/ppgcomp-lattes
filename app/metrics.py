@@ -12,7 +12,11 @@ from app.qualis_overrides import (
     load_overrides,
 )
 from app.publication_flags import (
-    get_student_flag,
+    get_student_manual_flag,
+)
+from app.students import (
+    find_student_authors,
+    load_students,
 )
 
 
@@ -202,6 +206,7 @@ def enrich_publication(
     qualis_db,
     doi_qualis=None,
     overrides=None,
+    students=None,
 ):
     key = publication_key(
         publication
@@ -440,12 +445,34 @@ def enrich_publication(
         individual_points = 0.0
 
     # -------------------------------------------------
+    # Detecção automática de aluno
+    # -------------------------------------------------
+
+    student_authors = find_student_authors(
+        publication,
+        students=students,
+    )
+
+    student_author_auto = bool(
+        student_authors
+    )
+
+    # -------------------------------------------------
     # Marcação manual de aluno
     # -------------------------------------------------
 
-    student_author = get_student_flag(
-        publication
+    student_author_manual = (
+        get_student_manual_flag(
+            publication
+        )
     )
+
+    if student_author_manual is None:
+        student_author = student_author_auto
+    else:
+        student_author = bool(
+            student_author_manual
+        )
 
     enriched = dict(
         publication
@@ -525,6 +552,15 @@ def enrich_publication(
             # Marcação de aluno
             "student_author": (
                 student_author
+            ),
+            "student_author_auto": (
+                student_author_auto
+            ),
+            "student_author_manual": (
+                student_author_manual
+            ),
+            "student_authors": (
+                student_authors
             ),
         }
     )
@@ -622,6 +658,8 @@ def evaluate_professors(
 
     overrides = load_overrides()
 
+    students = load_students()
+
     enriched_by_key = {}
 
     for publications in (
@@ -649,6 +687,7 @@ def evaluate_professors(
                     qualis_db=qualis_db,
                     doi_qualis=doi_qualis,
                     overrides=overrides,
+                    students=students,
                 )
             )
 
@@ -691,6 +730,7 @@ def evaluate_professors(
         total = 0.0
 
         coauthored_count = 0
+        student_author_count = 0
 
         for publication in (
             own_publications
@@ -735,6 +775,12 @@ def evaluate_professors(
                 total += (
                     individual_points
                 )
+
+            if enriched.get(
+                "student_author",
+                False,
+            ):
+                student_author_count += 1
 
             if len(
                 evaluated_coauthors
@@ -813,6 +859,9 @@ def evaluate_professors(
             ),
             "coauthored_publications": (
                 coauthored_count
+            ),
+            "student_author_publications": (
+                student_author_count
             ),
             "total": total,
             "status": (

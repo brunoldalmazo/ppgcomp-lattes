@@ -28,8 +28,11 @@ from app.qualis_overrides import (
     set_vehicle_override,
 )
 from app.publication_flags import (
-    get_student_flag,
+    get_student_manual_flag,
     set_student_flag,
+)
+from app.students import (
+    find_student_authors,
 )
 
 
@@ -805,13 +808,41 @@ def api_get_student_author():
             }
         ), 404
 
+    student_authors = find_student_authors(
+        publication
+    )
+
+    student_author_auto = bool(
+        student_authors
+    )
+
+    student_author_manual = (
+        get_student_manual_flag(
+            publication
+        )
+    )
+
+    if student_author_manual is None:
+        student_author = (
+            student_author_auto
+        )
+    else:
+        student_author = bool(
+            student_author_manual
+        )
+
     return jsonify(
         {
             "ok": True,
-            "student_author": (
-                get_student_flag(
-                    publication
-                )
+            "student_author": student_author,
+            "student_author_auto": (
+                student_author_auto
+            ),
+            "student_author_manual": (
+                student_author_manual
+            ),
+            "student_authors": (
+                student_authors
             ),
         }
     )
@@ -874,12 +905,25 @@ def api_set_student_author():
         student_author=student_author,
     )
 
+    student_authors = find_student_authors(
+        publication
+    )
+
     return jsonify(
         {
             "ok": True,
             "student_author": flag[
                 "student_author"
             ],
+            "student_author_auto": bool(
+                student_authors
+            ),
+            "student_author_manual": (
+                flag["student_author_manual"]
+            ),
+            "student_authors": (
+                student_authors
+            ),
         }
     )
 
