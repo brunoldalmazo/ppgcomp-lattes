@@ -1,9 +1,22 @@
 {
-  "publications": {},
+  "publications": {
+    "doi:10.1109/pdp59025.2023.00014": {
+      "qualis": "A4",
+      "note": ""
+    },
+    "doi:10.5753/sbseg.2026.28923": {
+      "qualis": "A4",
+      "note": ""
+    }
+  },
   "vehicles": {
     "event:iccsa": {
       "qualis": "A2",
       "note": "ICCSA classificado manualmente como A2"
+    },
+    "event:passive and active measurement conference pam 2025": {
+      "qualis": "A2",
+      "note": ""
     }
   }
 }
