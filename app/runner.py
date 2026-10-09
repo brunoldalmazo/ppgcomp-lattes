@@ -12,6 +12,7 @@ from app.metrics import evaluate_professors
 from app.qualis import QualisDB
 from app.export import export_json
 from app.export_excel import export_excel
+from app.students import find_student_authors, load_students
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -82,9 +83,7 @@ def collect_all_lattes():
     print("=" * 70)
     print()
 
-    print(
-        f"URLs encontradas: {len(urls)}"
-    )
+    print(f"URLs encontradas: {len(urls)}")
     print()
 
     lattes_data = []
@@ -100,15 +99,10 @@ def collect_all_lattes():
         )
 
         try:
-
-            data = collect_lattes(
-                url
-            )
+            data = collect_lattes(url)
 
             if not data:
-                print(
-                    "  ERRO: nenhum dado retornado."
-                )
+                print("  ERRO: nenhum dado retornado.")
                 continue
 
             name = data.get(
@@ -121,30 +115,19 @@ def collect_all_lattes():
                 [],
             )
 
-            print(
-                f"  Professor: {name}"
-            )
-
+            print(f"  Professor: {name}")
             print(
                 f"  Publicações coletadas: "
                 f"{len(publications)}"
             )
 
-            lattes_data.append(
-                data
-            )
+            lattes_data.append(data)
 
         except Exception as exc:
-
-            print(
-                f"  ERRO: {exc}"
-            )
+            print(f"  ERRO: {exc}")
 
         if index < len(urls):
-
-            time.sleep(
-                LATTES_DELAY_SECONDS
-            )
+            time.sleep(LATTES_DELAY_SECONDS)
 
     print()
     print(
@@ -155,12 +138,70 @@ def collect_all_lattes():
     return lattes_data
 
 
+def preprocess_student_authors(lattes_data):
+    """
+    Identifica autores alunos localmente e salva os resultados
+    nas publicações brutas, que serão persistidas no dados.json.
+
+    Listas de autores idênticas são processadas apenas uma vez.
+    """
+
+    print()
+    print("=" * 70)
+    print("PRÉ-PROCESSAMENTO DE AUTORES ALUNOS")
+    print("=" * 70)
+
+    students = load_students()
+    author_matches_cache = {}
+    total_publications = 0
+
+    for professor in lattes_data:
+        for publication in professor.get("publications", []):
+            total_publications += 1
+
+            authors = str(
+                publication.get("authors", "") or ""
+            )
+
+            if authors not in author_matches_cache:
+                author_matches_cache[authors] = (
+                    find_student_authors(
+                        publication,
+                        students=students,
+                    )
+                )
+
+            publication["_student_authors_precomputed"] = True
+            publication["_student_authors_cached"] = (
+                author_matches_cache[authors]
+            )
+
+    matched_publications = sum(
+        bool(publication["_student_authors_cached"])
+        for professor in lattes_data
+        for publication in professor.get("publications", [])
+    )
+
+    print(f"Alunos cadastrados: {len(students)}")
+    print(f"Currículos processados: {len(lattes_data)}")
+    print(f"Registros de publicações: {total_publications}")
+    print(
+        f"Listas de autores distintas: "
+        f"{len(author_matches_cache)}"
+    )
+    print(
+        f"Registros com alunos identificados: "
+        f"{matched_publications}"
+    )
+
+
 def run_evaluation():
     """
     Executa o fluxo completo:
 
         input/professores.txt
-        -> Lattes
+        -> coleta dos Lattes
+        -> pré-processamento local dos autores alunos
         -> avaliação
         -> dados.json
         -> avaliacao_ppgcomp_YYYY.xlsx
@@ -172,6 +213,8 @@ def run_evaluation():
         raise RuntimeError(
             "Nenhum Lattes foi coletado."
         )
+
+    preprocess_student_authors(lattes_data)
 
     print()
     print("=" * 70)
@@ -186,17 +229,10 @@ def run_evaluation():
         end_year=REFERENCE_YEAR,
     )
 
-    professors = resultado[
-        "professors"
-    ]
+    professors = resultado["professors"]
 
-    for professor in sorted(
-        professors
-    ):
-
-        dados = professors[
-            professor
-        ]
+    for professor in sorted(professors):
+        dados = professors[professor]
 
         print(
             f"{professor}: "
@@ -212,10 +248,7 @@ def run_evaluation():
         f"{len(resultado['publications'])}"
     )
 
-    print(
-        f"Pendências: "
-        f"{len(resultado['pending'])}"
-    )
+    print(f"Pendências: {len(resultado['pending'])}")
 
     output_file = export_json(
         resultado=resultado,
@@ -229,13 +262,8 @@ def run_evaluation():
     )
 
     print()
-    print(
-        f"JSON salvo em: {output_file}"
-    )
-
-    print(
-        f"Excel salvo em: {excel_file}"
-    )
+    print(f"JSON salvo em: {output_file}")
+    print(f"Excel salvo em: {excel_file}")
 
     return resultado
 

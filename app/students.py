@@ -1,5 +1,7 @@
+
 import re
 import unicodedata
+from functools import lru_cache
 from pathlib import Path
 
 
@@ -14,6 +16,7 @@ NAME_PARTICLES = {
 }
 
 
+@lru_cache(maxsize=50000)
 def normalize_name(name):
     value = str(name or "").strip()
 
@@ -94,10 +97,12 @@ def split_authors(authors):
     ]
 
 
+@lru_cache(maxsize=50000)
 def name_tokens(name):
     return normalize_name(name).replace(",", " ").split()
 
 
+@lru_cache(maxsize=50000)
 def significant_tokens(name):
     return [
         token

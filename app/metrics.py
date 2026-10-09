@@ -74,27 +74,19 @@ def deduplicate_publications(publications):
     seen = set()
 
     for publication in publications:
-
-        key = publication_key(
-            publication
-        )
+        key = publication_key(publication)
 
         if key in seen:
             continue
 
         seen.add(key)
-        result.append(
-            publication
-        )
+        result.append(publication)
 
     return result
 
 
 def normalize_lattes_data(lattes_data):
-    if not isinstance(
-        lattes_data,
-        list,
-    ):
+    if not isinstance(lattes_data, list):
         raise TypeError(
             "lattes_data deve ser uma lista de registros de Lattes."
         )
@@ -102,7 +94,6 @@ def normalize_lattes_data(lattes_data):
     result = {}
 
     for item in lattes_data:
-
         name = str(
             item.get("name") or ""
         ).strip()
@@ -115,86 +106,46 @@ def normalize_lattes_data(lattes_data):
     return result
 
 
-def build_publication_index(
-    professor_publications
-):
+def build_publication_index(professor_publications):
     index = defaultdict(list)
 
-    for (
-        professor,
-        publications,
-    ) in professor_publications.items():
-
+    for professor, publications in professor_publications.items():
         for publication in publications:
-
-            key = publication_key(
-                publication
-            )
+            key = publication_key(publication)
 
             if professor not in index[key]:
-                index[key].append(
-                    professor
-                )
+                index[key].append(professor)
 
     return index
 
 
-def lookup_publication_qualis(
-    publication,
-    qualis_db,
-):
+def lookup_publication_qualis(publication, qualis_db):
     return qualis_db.lookup(
-        issn=publication.get(
-            "issn",
-            "",
-        ),
-        title=publication.get(
-            "venue",
-            "",
-        ),
-        publication_type=publication.get(
-            "type",
-            "",
-        ),
+        issn=publication.get("issn", ""),
+        title=publication.get("venue", ""),
+        publication_type=publication.get("type", ""),
     )
 
 
-def build_doi_qualis_index(
-    professor_publications,
-    qualis_db,
-):
+def build_doi_qualis_index(professor_publications, qualis_db):
     doi_qualis = {}
 
-    for publications in (
-        professor_publications.values()
-    ):
-
+    for publications in professor_publications.values():
         for publication in publications:
-
             doi = normalize_doi(
-                publication.get(
-                    "doi"
-                )
+                publication.get("doi")
             )
 
-            if (
-                not doi
-                or doi in doi_qualis
-            ):
+            if not doi or doi in doi_qualis:
                 continue
 
-            qualis_result = (
-                lookup_publication_qualis(
-                    publication,
-                    qualis_db,
-                )
+            qualis_result = lookup_publication_qualis(
+                publication,
+                qualis_db,
             )
 
             if qualis_result is not None:
-
-                doi_qualis[doi] = (
-                    qualis_result
-                )
+                doi_qualis[doi] = qualis_result
 
     return doi_qualis
 
@@ -208,46 +159,27 @@ def enrich_publication(
     overrides=None,
     students=None,
 ):
-    key = publication_key(
-        publication
-    )
+    key = publication_key(publication)
 
     evaluated_coauthors = sorted(
         professor
-        for professor in (
-            publication_index.get(
-                key,
-                []
-            )
-        )
+        for professor in publication_index.get(key, [])
         if professor in evaluated_professors
     )
 
     doi = normalize_doi(
-        publication.get(
-            "doi"
-        )
+        publication.get("doi")
     )
 
     qualis_result = None
 
-    if (
-        doi
-        and doi_qualis
-    ):
-        qualis_result = (
-            doi_qualis.get(
-                doi
-            )
-        )
+    if doi and doi_qualis:
+        qualis_result = doi_qualis.get(doi)
 
     if qualis_result is None:
-
-        qualis_result = (
-            lookup_publication_qualis(
-                publication,
-                qualis_db,
-            )
+        qualis_result = lookup_publication_qualis(
+            publication,
+            qualis_db,
         )
 
     # -------------------------------------------------
@@ -255,7 +187,6 @@ def enrich_publication(
     # -------------------------------------------------
 
     if qualis_result is None:
-
         official_qualis = None
         official_points = 0.0
         qualis_title = ""
@@ -267,68 +198,15 @@ def enrich_publication(
         qualis_matched_by = ""
 
     else:
-
-        official_qualis = (
-            qualis_result.get(
-                "qualis"
-            )
-        )
-
-        official_points = (
-            qualis_result.get(
-                "points"
-            )
-            or 0.0
-        )
-
-        qualis_title = (
-            qualis_result.get(
-                "titulo",
-                "",
-            )
-        )
-
-        qualis_tipo = (
-            qualis_result.get(
-                "tipo",
-                "",
-            )
-        )
-
-        qualis_tipo_norm = (
-            qualis_result.get(
-                "tipo_norm",
-                "",
-            )
-        )
-
-        qualis_issn = (
-            qualis_result.get(
-                "issn",
-                "",
-            )
-        )
-
-        qualis_fonte = (
-            qualis_result.get(
-                "fonte",
-                "",
-            )
-        )
-
-        qualis_periodo = (
-            qualis_result.get(
-                "periodo",
-                "",
-            )
-        )
-
-        qualis_matched_by = (
-            qualis_result.get(
-                "matched_by",
-                "",
-            )
-        )
+        official_qualis = qualis_result.get("qualis")
+        official_points = qualis_result.get("points") or 0.0
+        qualis_title = qualis_result.get("titulo", "")
+        qualis_tipo = qualis_result.get("tipo", "")
+        qualis_tipo_norm = qualis_result.get("tipo_norm", "")
+        qualis_issn = qualis_result.get("issn", "")
+        qualis_fonte = qualis_result.get("fonte", "")
+        qualis_periodo = qualis_result.get("periodo", "")
+        qualis_matched_by = qualis_result.get("matched_by", "")
 
     # -------------------------------------------------
     # Overrides manuais
@@ -348,220 +226,105 @@ def enrich_publication(
     manual_note = ""
     manual_scope = ""
 
-    # Override específico da publicação tem prioridade
-    # sobre override do veículo.
-
     if publication_override:
-
-        manual_qualis = (
-            publication_override.get(
-                "qualis"
-            )
-        )
-
-        manual_note = (
-            publication_override.get(
-                "note",
-                "",
-            )
-        )
-
-        manual_scope = (
-            "publication"
-        )
+        manual_qualis = publication_override.get("qualis")
+        manual_note = publication_override.get("note", "")
+        manual_scope = "publication"
 
     elif vehicle_override:
-
-        manual_qualis = (
-            vehicle_override.get(
-                "qualis"
-            )
-        )
-
-        manual_note = (
-            vehicle_override.get(
-                "note",
-                "",
-            )
-        )
-
-        manual_scope = (
-            "vehicle"
-        )
+        manual_qualis = vehicle_override.get("qualis")
+        manual_note = vehicle_override.get("note", "")
+        manual_scope = "vehicle"
 
     # -------------------------------------------------
     # Qualis aplicado
     # -------------------------------------------------
 
     if manual_qualis:
-
-        applied_qualis = (
-            manual_qualis
-        )
-
-        applied_points = (
-            WEIGHTS.get(
-                manual_qualis,
-                0.0,
-            )
-        )
-
-        qualis_source = (
-            "manual"
-        )
+        applied_qualis = manual_qualis
+        applied_points = WEIGHTS.get(manual_qualis, 0.0)
+        qualis_source = "manual"
 
     else:
-
-        applied_qualis = (
-            official_qualis
-        )
-
-        applied_points = (
-            official_points
-        )
-
+        applied_qualis = official_qualis
+        applied_points = official_points
         qualis_source = (
             "automatic"
             if official_qualis
             else ""
         )
 
-    evaluated_coauthor_count = len(
-        evaluated_coauthors
-    )
+    evaluated_coauthor_count = len(evaluated_coauthors)
 
-    if (
-        applied_points > 0
-        and evaluated_coauthor_count > 0
-    ):
-
+    if applied_points > 0 and evaluated_coauthor_count > 0:
         individual_points = (
             applied_points
             / evaluated_coauthor_count
         )
-
     else:
-
         individual_points = 0.0
 
     # -------------------------------------------------
     # Detecção automática de aluno
     # -------------------------------------------------
 
-    student_authors = find_student_authors(
-        publication,
-        students=students,
-    )
+    if publication.get("_student_authors_precomputed"):
+        student_authors = publication.get(
+            "_student_authors_cached",
+            [],
+        )
+    else:
+        student_authors = find_student_authors(
+            publication,
+            students=students,
+        )
 
-    student_author_auto = bool(
-        student_authors
-    )
+    student_author_auto = bool(student_authors)
 
     # -------------------------------------------------
     # Marcação manual de aluno
     # -------------------------------------------------
 
-    student_author_manual = (
-        get_student_manual_flag(
-            publication
-        )
+    student_author_manual = get_student_manual_flag(
+        publication
     )
 
     if student_author_manual is None:
         student_author = student_author_auto
     else:
-        student_author = bool(
-            student_author_manual
-        )
+        student_author = bool(student_author_manual)
 
-    enriched = dict(
-        publication
-    )
+    # Não propaga campos internos de pré-processamento
+    # para os registros enriquecidos exibidos no dashboard.
+    enriched = dict(publication)
+    enriched.pop("_student_authors_precomputed", None)
+    enriched.pop("_student_authors_cached", None)
 
     enriched.update(
         {
-            # Qualis aplicado
             "qualis": applied_qualis,
-
-            # Qualis oficial
-            "qualis_official": (
-                official_qualis
-            ),
-            "qualis_official_points": (
-                official_points
-            ),
-
-            # Qualis manual
-            "qualis_manual": (
-                manual_qualis
-            ),
-            "qualis_manual_note": (
-                manual_note
-            ),
-            "qualis_manual_scope": (
-                manual_scope
-            ),
-
-            # Qualis aplicado
-            "qualis_applied": (
-                applied_qualis
-            ),
-            "qualis_applied_points": (
-                applied_points
-            ),
-            "qualis_source": (
-                qualis_source
-            ),
-
-            # Dados do registro Qualis
-            "qualis_title": (
-                qualis_title
-            ),
-            "qualis_tipo": (
-                qualis_tipo
-            ),
-            "qualis_tipo_norm": (
-                qualis_tipo_norm
-            ),
-            "qualis_issn": (
-                qualis_issn
-            ),
-            "qualis_fonte": (
-                qualis_fonte
-            ),
-            "qualis_periodo": (
-                qualis_periodo
-            ),
-            "qualis_matched_by": (
-                qualis_matched_by
-            ),
-
-            # Coautoria
-            "evaluated_professors": (
-                evaluated_coauthors
-            ),
-            "evaluated_coauthor_count": (
-                evaluated_coauthor_count
-            ),
-
-            # Pontuação individual
-            "individual_points": (
-                individual_points
-            ),
-
-            # Marcação de aluno
-            "student_author": (
-                student_author
-            ),
-            "student_author_auto": (
-                student_author_auto
-            ),
-            "student_author_manual": (
-                student_author_manual
-            ),
-            "student_authors": (
-                student_authors
-            ),
+            "qualis_official": official_qualis,
+            "qualis_official_points": official_points,
+            "qualis_manual": manual_qualis,
+            "qualis_manual_note": manual_note,
+            "qualis_manual_scope": manual_scope,
+            "qualis_applied": applied_qualis,
+            "qualis_applied_points": applied_points,
+            "qualis_source": qualis_source,
+            "qualis_title": qualis_title,
+            "qualis_tipo": qualis_tipo,
+            "qualis_tipo_norm": qualis_tipo_norm,
+            "qualis_issn": qualis_issn,
+            "qualis_fonte": qualis_fonte,
+            "qualis_periodo": qualis_periodo,
+            "qualis_matched_by": qualis_matched_by,
+            "evaluated_professors": evaluated_coauthors,
+            "evaluated_coauthor_count": evaluated_coauthor_count,
+            "individual_points": individual_points,
+            "student_author": student_author,
+            "student_author_auto": student_author_auto,
+            "student_author_manual": student_author_manual,
+            "student_authors": student_authors,
         }
     )
 
@@ -576,11 +339,9 @@ def evaluate_professors(
     min_score=None,
 ):
     if qualis_db is None:
-
         qualis_db = QualisDB()
 
     if min_score is None:
-
         min_score = MIN_SCORE
 
     if (
@@ -588,134 +349,69 @@ def evaluate_professors(
         and end_year is not None
         and start_year > end_year
     ):
-
         raise ValueError(
             "start_year não pode ser maior que end_year."
         )
 
-    professor_data = (
-        normalize_lattes_data(
-            lattes_data
-        )
-    )
-
-    evaluated_professors = set(
-        professor_data.keys()
-    )
-
+    professor_data = normalize_lattes_data(lattes_data)
+    evaluated_professors = set(professor_data.keys())
     professor_publications = {}
 
-    for (
-        professor,
-        data,
-    ) in professor_data.items():
+    for professor, data in professor_data.items():
+        publications = data.get("publications", [])
 
-        publications = data.get(
-            "publications",
-            [],
-        )
-
-        if (
-            start_year is not None
-            and end_year is not None
-        ):
-
+        if start_year is not None and end_year is not None:
             publications = [
                 publication
                 for publication in publications
                 if (
                     start_year
-                    <= publication.get(
-                        "year",
-                        0,
-                    )
+                    <= publication.get("year", 0)
                     <= end_year
                 )
             ]
 
-        publications = (
-            deduplicate_publications(
-                publications
-            )
-        )
+        publications = deduplicate_publications(publications)
+        professor_publications[professor] = publications
 
-        professor_publications[
-            professor
-        ] = publications
-
-    publication_index = (
-        build_publication_index(
-            professor_publications
-        )
+    publication_index = build_publication_index(
+        professor_publications
     )
 
-    doi_qualis = (
-        build_doi_qualis_index(
-            professor_publications,
-            qualis_db,
-        )
+    doi_qualis = build_doi_qualis_index(
+        professor_publications,
+        qualis_db,
     )
 
     overrides = load_overrides()
-
     students = load_students()
-
     enriched_by_key = {}
 
-    for publications in (
-        professor_publications.values()
-    ):
-
+    for publications in professor_publications.values():
         for publication in publications:
-
-            key = publication_key(
-                publication
-            )
+            key = publication_key(publication)
 
             if key in enriched_by_key:
                 continue
 
-            enriched_by_key[key] = (
-                enrich_publication(
-                    publication=publication,
-                    evaluated_professors=(
-                        evaluated_professors
-                    ),
-                    publication_index=(
-                        publication_index
-                    ),
-                    qualis_db=qualis_db,
-                    doi_qualis=doi_qualis,
-                    overrides=overrides,
-                    students=students,
-                )
+            enriched_by_key[key] = enrich_publication(
+                publication=publication,
+                evaluated_professors=evaluated_professors,
+                publication_index=publication_index,
+                qualis_db=qualis_db,
+                doi_qualis=doi_qualis,
+                overrides=overrides,
+                students=students,
             )
 
-    publications = list(
-        enriched_by_key.values()
-    )
-
+    publications = list(enriched_by_key.values())
     professors = {}
-
-    coauthorships = (
-        defaultdict(list)
-    )
-
+    coauthorships = defaultdict(list)
     pending = []
 
-    for professor in sorted(
-        evaluated_professors
-    ):
-
-        data = professor_data[
-            professor
-        ]
-
-        own_publications = (
-            professor_publications[
-                professor
-            ]
-        )
+    for professor in sorted(evaluated_professors):
+        data = professor_data[professor]
+        own_publications = professor_publications[professor]
 
         counts = {
             qualis: 0
@@ -728,141 +424,60 @@ def evaluate_professors(
         }
 
         total = 0.0
-
         coauthored_count = 0
         student_author_count = 0
 
-        for publication in (
-            own_publications
-        ):
+        for publication in own_publications:
+            key = publication_key(publication)
+            enriched = enriched_by_key[key]
 
-            key = publication_key(
-                publication
+            qualis = enriched.get("qualis_applied")
+            individual_points = enriched.get(
+                "individual_points",
+                0.0,
             )
-
-            enriched = (
-                enriched_by_key[
-                    key
-                ]
-            )
-
-            qualis = enriched.get(
-                "qualis_applied"
-            )
-
-            individual_points = (
-                enriched.get(
-                    "individual_points",
-                    0.0,
-                )
-            )
-
-            evaluated_coauthors = (
-                enriched.get(
-                    "evaluated_professors",
-                    [],
-                )
+            evaluated_coauthors = enriched.get(
+                "evaluated_professors",
+                [],
             )
 
             if qualis in counts:
-
                 counts[qualis] += 1
+                points[qualis] += individual_points
+                total += individual_points
 
-                points[qualis] += (
-                    individual_points
-                )
-
-                total += (
-                    individual_points
-                )
-
-            if enriched.get(
-                "student_author",
-                False,
-            ):
+            if enriched.get("student_author", False):
                 student_author_count += 1
 
-            if len(
-                evaluated_coauthors
-            ) > 1:
-
+            if len(evaluated_coauthors) > 1:
                 coauthored_count += 1
-
-                coauthorships[
-                    professor
-                ].append(
-                    enriched
-                )
+                coauthorships[professor].append(enriched)
 
             if not qualis:
-
                 pending.append(
                     {
-                        "professor": (
-                            professor
-                        ),
-                        "year": (
-                            publication.get(
-                                "year"
-                            )
-                        ),
-                        "type": (
-                            publication.get(
-                                "type"
-                            )
-                        ),
-                        "title": (
-                            publication.get(
-                                "title"
-                            )
-                        ),
-                        "venue": (
-                            publication.get(
-                                "venue"
-                            )
-                        ),
-                        "issn": (
-                            publication.get(
-                                "issn"
-                            )
-                        ),
-                        "doi": (
-                            publication.get(
-                                "doi"
-                            )
-                        ),
-                        "pendencia": (
-                            "Qualis não encontrado"
-                        ),
+                        "professor": professor,
+                        "year": publication.get("year"),
+                        "type": publication.get("type"),
+                        "title": publication.get("title"),
+                        "venue": publication.get("venue"),
+                        "issn": publication.get("issn"),
+                        "doi": publication.get("doi"),
+                        "pendencia": "Qualis não encontrado",
                     }
                 )
 
-        professors[
-            professor
-        ] = {
+        professors[professor] = {
             "professor": professor,
-            "lattes_url": data.get(
-                "lattes_url"
-            ),
+            "lattes_url": data.get("lattes_url"),
             "lattes_update": data.get(
                 "last_update",
-                data.get(
-                    "lattes_update",
-                    "",
-                ),
+                data.get("lattes_update", ""),
             ),
-            "lattes_update_date": data.get(
-                "last_update_date"
-            ),
-            "publications": len(
-                own_publications
-            ),
-            "coauthored_publications": (
-                coauthored_count
-            ),
-            "student_author_publications": (
-                student_author_count
-            ),
+            "lattes_update_date": data.get("last_update_date"),
+            "publications": len(own_publications),
+            "coauthored_publications": coauthored_count,
+            "student_author_publications": student_author_count,
             "total": total,
             "status": (
                 "ATENDE"
@@ -879,11 +494,7 @@ def evaluate_professors(
         "min_score": min_score,
         "professors": professors,
         "publications": publications,
-        "coauthorships": dict(
-            coauthorships
-        ),
+        "coauthorships": dict(coauthorships),
         "pending": pending,
-        "publication_index": dict(
-            publication_index
-        ),
+        "publication_index": dict(publication_index),
     }
