@@ -1,4 +1,3 @@
-
 from pathlib import Path
 import json
 import logging
@@ -36,76 +35,23 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 ROOT = Path(__file__).resolve().parent.parent
+
 DATA_FILE = ROOT / "output" / "2026" / "dados.json"
 
 app = Flask(__name__)
+
 QUALIS_DB = QualisDB()
 
-STUDENT_QUALIS_OPTIONS = {"A1", "A2", "A3", "A4"}
-STUDENT_QUALIS_ALL = ["A1", "A2", "A3", "A4"]
-
+# Cache da avaliação por processo.
+# A chave considera os parâmetros e a versão do dados.json.
 _EVALUATION_CACHE = {}
 _EVALUATION_CACHE_LOCK = threading.RLock()
 
+# Cache dos dados brutos carregados do JSON.
+# A assinatura permite detectar atualizações do arquivo.
 _DATA_CACHE = None
 _DATA_CACHE_SIGNATURE = None
 _DATA_CACHE_LOCK = threading.RLock()
-
-
-def normalize_student_qualis_filter(value):
-    """
-    Normaliza o filtro de Qualis.
-
-    Aceita "Todos", uma categoria, uma string separada por
-    vírgulas ou uma lista de categorias.
-
-    Uma lista vazia significa que nenhuma categoria foi
-    selecionada. "Todos" equivale a A1+A2+A3+A4.
-    """
-    if isinstance(value, str):
-        value = value.strip()
-
-        if value == "Todos":
-            return STUDENT_QUALIS_ALL.copy()
-
-        if not value:
-            return []
-
-        selected = {
-            item.strip().upper()
-            for item in value.split(",")
-            if item.strip()
-        }
-
-    elif isinstance(value, (list, tuple, set)):
-        selected = set()
-
-        for item in value:
-            if not isinstance(item, str):
-                raise ValueError(
-                    "Filtro de Qualis para publicações com alunos inválido."
-                )
-
-            item = item.strip()
-
-            if item == "Todos":
-                return STUDENT_QUALIS_ALL.copy()
-
-            if item:
-                selected.add(item.upper())
-
-    else:
-        raise ValueError(
-            "Filtro de Qualis para publicações com alunos inválido."
-        )
-
-    if not selected.issubset(STUDENT_QUALIS_OPTIONS):
-        raise ValueError(
-            "Filtro de Qualis inválido. "
-            "Selecione A1, A2, A3 ou A4."
-        )
-
-    return sorted(selected)
 
 
 def clear_evaluation_cache():
@@ -126,19 +72,18 @@ def get_cached_evaluation(
     end_year,
     min_score,
     data_signature,
-    student_qualis_filter="Todos",
 ):
-    """Retorna uma avaliação em cache ou calcula uma nova."""
-    selected_qualis = normalize_student_qualis_filter(
-        student_qualis_filter
-    )
+    """
+    Retorna uma avaliação em cache ou calcula uma nova.
 
+    O bloqueio evita que várias requisições simultâneas
+    recalcularem a mesma avaliação no mesmo processo.
+    """
     cache_key = (
         data_signature,
         start_year,
         end_year,
         float(min_score),
-        tuple(selected_qualis),
     )
 
     with _EVALUATION_CACHE_LOCK:
@@ -162,18 +107,18 @@ def get_cached_evaluation(
             start_year=start_year,
             end_year=end_year,
             min_score=min_score,
-            student_qualis_filter=selected_qualis,
         )
 
         resultado["configuracao"] = {
             "start_year": start_year,
             "end_year": end_year,
             "min_score": min_score,
-            "student_qualis_filter": selected_qualis,
         }
 
         resultado = make_json_safe(resultado)
 
+        # Não guardar o resultado se o arquivo mudou durante
+        # o cálculo. A próxima requisição fará novo cálculo.
         try:
             current_signature = get_data_signature()
         except OSError:
@@ -187,7 +132,13 @@ def get_cached_evaluation(
 
 
 def load_data():
-    """Carrega dados.json e mantém o conteúdo em memória."""
+    """
+    Carrega dados.json e mantém o conteúdo em memória.
+
+    Se o arquivo mudar, uma nova versão será carregada.
+    O bloqueio evita leituras redundantes em requisições
+    simultâneas no mesmo processo.
+    """
     global _DATA_CACHE, _DATA_CACHE_SIGNATURE
 
     with _DATA_CACHE_LOCK:
@@ -203,6 +154,8 @@ def load_data():
             with DATA_FILE.open("r", encoding="utf-8") as file:
                 data = json.load(file)
 
+            # Confere se o arquivo não foi atualizado durante
+            # a leitura. Se mudou, repete usando a nova versão.
             signature_after = get_data_signature()
 
             if signature_before != signature_after:
@@ -311,7 +264,11 @@ def find_publication(data, doi=None, title=None, year=None):
 
 
 def get_publication_student_authors(publication):
-    """Usa nomes pré-processados quando disponíveis."""
+    """
+    Usa os nomes de alunos pré-processados quando disponíveis.
+    Mantém o método antigo como alternativa para registros
+    que ainda não tenham sido pré-processados.
+    """
     if publication.get("_student_authors_precomputed") is True:
         cached_authors = publication.get(
             "_student_authors_cached"
@@ -357,19 +314,6 @@ def api_avaliacao():
             type=float,
         )
 
-        # Aceita parâmetros repetidos:
-        # ?student_qualis_filter=A1&student_qualis_filter=A2
-        if "student_qualis_filter" not in request.args:
-            raw_filter = "Todos"
-        else:
-            raw_filter = request.args.getlist(
-                "student_qualis_filter"
-            )
-
-        student_qualis_filter = normalize_student_qualis_filter(
-            raw_filter
-        )
-
         if start_year > end_year:
             return jsonify({
                 "erro": (
@@ -393,19 +337,17 @@ def api_avaliacao():
                 )
             }), 500
 
+        data_signature = get_data_signature()
+
         resultado = get_cached_evaluation(
             lattes_data=lattes_data,
             start_year=start_year,
             end_year=end_year,
             min_score=min_score,
-            data_signature=get_data_signature(),
-            student_qualis_filter=student_qualis_filter,
+            data_signature=data_signature,
         )
 
         return jsonify(resultado)
-
-    except ValueError as exc:
-        return jsonify({"erro": str(exc)}), 400
 
     except Exception:
         logger.exception("Erro ao processar a avaliação")
@@ -425,24 +367,17 @@ def api_export_excel():
     default_start, default_end = get_default_period(data)
     default_min_score = get_default_min_score(data)
 
+    start_year = payload.get("start_year", default_start)
+    end_year = payload.get("end_year", default_end)
+    min_score = payload.get("min_score", default_min_score)
+
     try:
-        start_year = int(
-            payload.get("start_year", default_start)
-        )
-        end_year = int(
-            payload.get("end_year", default_end)
-        )
-        min_score = float(
-            payload.get("min_score", default_min_score)
-        )
-
-        student_qualis_filter = normalize_student_qualis_filter(
-            payload.get("student_qualis_filter", "Todos")
-        )
-
-    except (TypeError, ValueError) as exc:
+        start_year = int(start_year)
+        end_year = int(end_year)
+        min_score = float(min_score)
+    except (TypeError, ValueError):
         return jsonify({
-            "erro": str(exc) or "Parâmetros de avaliação inválidos."
+            "erro": "Parâmetros de avaliação inválidos."
         }), 400
 
     if start_year > end_year:
@@ -468,20 +403,20 @@ def api_export_excel():
             )
         }), 500
 
+    # Mantém o comportamento original do Excel:
+    # recalcula a avaliação ao solicitar a exportação.
     resultado = evaluate_professors(
         lattes_data=lattes_data,
         qualis_db=QUALIS_DB,
         start_year=start_year,
         end_year=end_year,
         min_score=min_score,
-        student_qualis_filter=student_qualis_filter,
     )
 
     resultado["configuracao"] = {
         "start_year": start_year,
         "end_year": end_year,
         "min_score": min_score,
-        "student_qualis_filter": student_qualis_filter,
     }
 
     try:

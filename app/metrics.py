@@ -1,3 +1,4 @@
+
 from collections import defaultdict
 import re
 
@@ -337,12 +338,39 @@ def evaluate_professors(
     start_year=None,
     end_year=None,
     min_score=None,
+    student_qualis_filter="Todos",
 ):
     if qualis_db is None:
         qualis_db = QualisDB()
 
     if min_score is None:
         min_score = MIN_SCORE
+
+    valid_student_qualis = {"A1", "A2", "A3", "A4"}
+
+    if isinstance(student_qualis_filter, str):
+        if student_qualis_filter == "Todos":
+            student_qualis_filter = valid_student_qualis.copy()
+        else:
+            student_qualis_filter = {
+                student_qualis_filter
+            }
+
+    elif isinstance(student_qualis_filter, (list, tuple, set)):
+        student_qualis_filter = set(student_qualis_filter)
+
+        if "Todos" in student_qualis_filter:
+            student_qualis_filter = valid_student_qualis.copy()
+
+    else:
+        raise ValueError(
+            "Filtro de Qualis para publicações com alunos inválido."
+        )
+
+    if not student_qualis_filter.issubset(valid_student_qualis):
+        raise ValueError(
+            "Filtro de Qualis para publicações com alunos inválido."
+        )
 
     if (
         start_year is not None
@@ -446,7 +474,10 @@ def evaluate_professors(
                 points[qualis] += individual_points
                 total += individual_points
 
-            if enriched.get("student_author", False):
+            if (
+                enriched.get("student_author", False)
+                and qualis in student_qualis_filter
+            ):
                 student_author_count += 1
 
             if len(evaluated_coauthors) > 1:
@@ -492,6 +523,7 @@ def evaluate_professors(
         "start_year": start_year,
         "end_year": end_year,
         "min_score": min_score,
+        "student_qualis_filter": sorted(student_qualis_filter),
         "professors": professors,
         "publications": publications,
         "coauthorships": dict(coauthorships),
