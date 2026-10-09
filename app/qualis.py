@@ -817,6 +817,12 @@ class QualisDB:
             )
         )
 
+        # Precalcula os tokens de cada título uma única vez.
+        self.conference_tokens_by_title = {
+            title: conference_title_tokens(title)
+            for title in self.conference_by_title
+        }
+
     def _result(
         self,
         row,
@@ -938,8 +944,9 @@ class QualisDB:
                 self.conference_by_title.items()
             ):
                 candidate_tokens = (
-                    conference_title_tokens(
-                        key
+                    self.conference_tokens_by_title.get(
+                        key,
+                        set(),
                     )
                 )
 

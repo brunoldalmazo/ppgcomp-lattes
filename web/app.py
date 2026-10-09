@@ -1,4 +1,3 @@
-
 from pathlib import Path
 import json
 import logging
@@ -48,6 +47,12 @@ QUALIS_DB = QualisDB()
 _EVALUATION_CACHE = {}
 _EVALUATION_CACHE_LOCK = threading.RLock()
 
+# Cache dos dados brutos carregados do JSON.
+# A assinatura permite detectar atualizações do arquivo.
+_DATA_CACHE = None
+_DATA_CACHE_SIGNATURE = None
+_DATA_CACHE_LOCK = threading.RLock()
+
 
 def clear_evaluation_cache():
     """Invalida os resultados de avaliação em memória."""
@@ -83,6 +88,7 @@ def get_cached_evaluation(
 
     with _EVALUATION_CACHE_LOCK:
         cached = _EVALUATION_CACHE.get(cache_key)
+
         if cached is not None:
             logger.info(
                 "Avaliação recuperada do cache: %s",
@@ -126,8 +132,44 @@ def get_cached_evaluation(
 
 
 def load_data():
-    with DATA_FILE.open("r", encoding="utf-8") as file:
-        return json.load(file)
+    """
+    Carrega dados.json e mantém o conteúdo em memória.
+
+    Se o arquivo mudar, uma nova versão será carregada.
+    O bloqueio evita leituras redundantes em requisições
+    simultâneas no mesmo processo.
+    """
+    global _DATA_CACHE, _DATA_CACHE_SIGNATURE
+
+    with _DATA_CACHE_LOCK:
+        while True:
+            signature_before = get_data_signature()
+
+            if (
+                _DATA_CACHE is not None
+                and _DATA_CACHE_SIGNATURE == signature_before
+            ):
+                return _DATA_CACHE
+
+            with DATA_FILE.open("r", encoding="utf-8") as file:
+                data = json.load(file)
+
+            # Confere se o arquivo não foi atualizado durante
+            # a leitura. Se mudou, repete usando a nova versão.
+            signature_after = get_data_signature()
+
+            if signature_before != signature_after:
+                continue
+
+            _DATA_CACHE = data
+            _DATA_CACHE_SIGNATURE = signature_after
+
+            logger.info(
+                "Dados carregados em memória: %s",
+                DATA_FILE,
+            )
+
+            return _DATA_CACHE
 
 
 def get_default_period(data):
