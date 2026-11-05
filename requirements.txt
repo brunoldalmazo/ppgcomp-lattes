@@ -3,3 +3,7 @@ gunicorn
 python-dotenv
 openpyxl
 pandas
+beautifulsoup4
+playwright
+lxml
+```

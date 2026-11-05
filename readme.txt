@@ -35,4 +35,4 @@ O sistema utiliza três conjuntos de dados como entrada:
 - **Alunos:** lista de alunos coautores das publicações.
 - **Qualis:** arquivo JSON contendo a classificação Qualis das publicações.
 
-
+gunicorn --bind 127.0.0.1:5000 web.app:app
