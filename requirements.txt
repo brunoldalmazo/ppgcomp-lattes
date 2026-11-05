@@ -6,4 +6,3 @@ pandas
 beautifulsoup4
 playwright
 lxml
-```
