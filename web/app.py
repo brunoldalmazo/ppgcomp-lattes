@@ -11,7 +11,9 @@ from flask import (
     request,
     send_file,
 )
+from werkzeug.exceptions import HTTPException
 
+from app.gist_storage import is_configured as gist_is_configured
 from app.metrics import evaluate_professors
 from app.qualis import QualisDB
 from app.export import make_json_safe
@@ -40,6 +42,51 @@ DATA_FILE = ROOT / "output" / "2026" / "dados.json"
 
 app = Flask(__name__)
 QUALIS_DB = QualisDB()
+
+
+logger.info(
+    "Persistência de overrides/flags: %s",
+    (
+        "Gist + arquivo local"
+        if gist_is_configured()
+        else "somente arquivo local (GITHUB_TOKEN/GIST_ID ausentes)"
+    ),
+)
+
+
+@app.errorhandler(HTTPException)
+def handle_http_exception(exc):
+    """
+    Garante que erros HTTP em /api/* continuem sendo JSON.
+
+    O frontend chama response.json() em todas as rotas de API; uma
+    página HTML de erro quebra o cliente com "Unexpected token '<'".
+    """
+
+    if request.path.startswith("/api/"):
+        return jsonify({
+            "erro": exc.description or exc.name,
+        }), exc.code
+
+    return exc
+
+
+@app.errorhandler(Exception)
+def handle_unexpected_exception(exc):
+    """Converte exceções não tratadas em /api/* para JSON."""
+
+    logger.exception(
+        "Erro não tratado em %s",
+        request.path,
+    )
+
+    if request.path.startswith("/api/"):
+        return jsonify({
+            "erro": "Erro interno no servidor.",
+        }), 500
+
+    return "Erro interno no servidor.", 500
+
 
 STUDENT_QUALIS_OPTIONS = {"A1", "A2", "A3", "A4"}
 STUDENT_QUALIS_ALL = ["A1", "A2", "A3", "A4"]

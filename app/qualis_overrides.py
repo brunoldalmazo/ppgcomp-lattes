@@ -1,16 +1,26 @@
 import json
+import logging
 import re
 import unicodedata
 from pathlib import Path
+
+from app.gist_storage import load_json as load_gist_json
+from app.gist_storage import save_json as save_gist_json
+
+
+logger = logging.getLogger(__name__)
 
 
 ROOT = Path(__file__).resolve().parent.parent
 
 
+OVERRIDES_FILENAME = "qualis_overrides.json"
+
+
 OVERRIDES_FILE = (
     ROOT
     / "output"
-    / "qualis_overrides.json"
+    / OVERRIDES_FILENAME
 )
 
 
@@ -329,19 +339,38 @@ def _normalize_storage(data):
     }
 
 
+def _empty_storage():
+    """Estrutura vazia no formato atual de overrides."""
+
+    return {
+        "publications": {},
+        "vehicles": {},
+    }
+
+
 def load_overrides():
     """
     Carrega os ajustes manuais existentes.
 
-    Também mantém compatibilidade com o formato
-    antigo de arquivo.
+    Quando o Gist está configurado, ele é a fonte de verdade.
+    Se o Gist estiver indisponível, recorre ao arquivo local.
+    Também mantém compatibilidade com o formato antigo de arquivo.
     """
 
+    gist_data = load_gist_json(
+        OVERRIDES_FILENAME
+    )
+
+    if isinstance(
+        gist_data,
+        dict,
+    ):
+        return _normalize_storage(
+            gist_data
+        )
+
     if not OVERRIDES_FILE.exists():
-        return {
-            "publications": {},
-            "vehicles": {},
-        }
+        return _empty_storage()
 
     try:
 
@@ -356,26 +385,15 @@ def load_overrides():
         json.JSONDecodeError,
     ):
 
-        return {
-            "publications": {},
-            "vehicles": {},
-        }
+        return _empty_storage()
 
     return _normalize_storage(
         data
     )
 
 
-def save_overrides(
-    overrides
-):
-    """
-    Salva os ajustes manuais.
-    """
-
-    normalized = _normalize_storage(
-        overrides
-    )
+def _write_local_overrides(normalized):
+    """Grava os overrides no arquivo local."""
 
     OVERRIDES_FILE.parent.mkdir(
         parents=True,
@@ -390,6 +408,53 @@ def save_overrides(
         ),
         encoding="utf-8",
     )
+
+
+def save_overrides(
+    overrides
+):
+    """
+    Salva os ajustes manuais.
+
+    O arquivo local é sempre atualizado (serve de cache/fallback) e
+    o Gist é atualizado em seguida, quando configurado.
+
+    Uma falha isolada no Gist não interrompe a requisição; só há erro
+    quando nenhum dos dois destinos consegue gravar.
+    """
+
+    normalized = _normalize_storage(
+        overrides
+    )
+
+    local_saved = True
+
+    try:
+
+        _write_local_overrides(
+            normalized
+        )
+
+    except OSError:
+
+        local_saved = False
+
+        logger.exception(
+            "Falha ao gravar overrides localmente em %s",
+            OVERRIDES_FILE,
+        )
+
+    gist_saved = save_gist_json(
+        OVERRIDES_FILENAME,
+        normalized,
+    )
+
+    if not local_saved and not gist_saved:
+
+        raise RuntimeError(
+            "Não foi possível salvar os ajustes de Qualis "
+            "no arquivo local nem no Gist."
+        )
 
 
 def get_override(

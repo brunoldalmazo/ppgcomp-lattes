@@ -1,14 +1,24 @@
 import json
+import logging
 from pathlib import Path
+
+from app.gist_storage import load_json as load_gist_json
+from app.gist_storage import save_json as save_gist_json
+
+
+logger = logging.getLogger(__name__)
 
 
 ROOT = Path(__file__).resolve().parent.parent
 
 
+FLAGS_FILENAME = "publication_flags.json"
+
+
 FLAGS_FILE = (
     ROOT
     / "output"
-    / "publication_flags.json"
+    / FLAGS_FILENAME
 )
 
 
@@ -70,6 +80,23 @@ def publication_key(publication):
 
 
 def load_flags():
+    """
+    Carrega as flags manuais.
+
+    Quando o Gist está configurado, ele é a fonte de verdade.
+    Se o Gist estiver indisponível, recorre ao arquivo local.
+    """
+
+    gist_data = load_gist_json(
+        FLAGS_FILENAME
+    )
+
+    if isinstance(
+        gist_data,
+        dict,
+    ):
+        return gist_data
+
     if not FLAGS_FILE.exists():
         return {}
 
@@ -94,7 +121,9 @@ def load_flags():
     return data
 
 
-def save_flags(flags):
+def _write_local_flags(flags):
+    """Grava as flags no arquivo local."""
+
     FLAGS_FILE.parent.mkdir(
         parents=True,
         exist_ok=True,
@@ -108,6 +137,51 @@ def save_flags(flags):
         ),
         encoding="utf-8",
     )
+
+
+def save_flags(flags):
+    """
+    Salva as flags.
+
+    O arquivo local é sempre atualizado (serve de cache/fallback) e
+    o Gist é atualizado em seguida, quando configurado.
+
+    Uma falha isolada no Gist não interrompe a requisição; só há erro
+    quando nenhum dos dois destinos consegue gravar.
+    """
+
+    if not isinstance(
+        flags,
+        dict,
+    ):
+        raise ValueError(
+            "As flags devem ser um objeto JSON."
+        )
+
+    local_saved = True
+
+    try:
+        _write_local_flags(
+            flags
+        )
+    except OSError:
+        local_saved = False
+
+        logger.exception(
+            "Falha ao gravar flags localmente em %s",
+            FLAGS_FILE,
+        )
+
+    gist_saved = save_gist_json(
+        FLAGS_FILENAME,
+        flags,
+    )
+
+    if not local_saved and not gist_saved:
+        raise RuntimeError(
+            "Não foi possível salvar as flags de aluno "
+            "no arquivo local nem no Gist."
+        )
 
 
 def get_student_manual_flag(
