@@ -1,7 +1,10 @@
 import json
+import os
 import re
 import unicodedata
 from pathlib import Path
+from urllib import request as urlrequest
+from urllib.error import URLError, HTTPError
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -24,6 +27,10 @@ VALID_QUALIS = {
     "A7",
     "A8",
 }
+
+GIST_ID = os.getenv("GIST_ID", "")
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
+GIST_FILENAME = "qualis_overrides.json"
 
 
 def normalize_doi(doi):
@@ -333,10 +340,22 @@ def load_overrides():
     """
     Carrega os ajustes manuais existentes.
 
+    Tenta primeiro o Gist configurado (variáveis GIST_ID e
+    GITHUB_TOKEN). Se não houver Gist ou falhar na leitura,
+    cai de volta para o arquivo local em
+    output/qualis_overrides.json.
+
     Também mantém compatibilidade com o formato
     antigo de arquivo.
     """
 
+    # Tenta carregar do Gist primeiro
+    if GIST_ID:
+        gist_data = load_from_gist()
+        if gist_data is not None:
+            return _normalize_storage(gist_data)
+
+    # Fallback para arquivo local
     if not OVERRIDES_FILE.exists():
         return {
             "publications": {},
@@ -390,6 +409,84 @@ def save_overrides(
         ),
         encoding="utf-8",
     )
+
+    save_to_gist(normalized)
+
+
+def _gist_headers():
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "scraper-lattes",
+    }
+
+    if GITHUB_TOKEN:
+        headers["Authorization"] = f"Bearer {GITHUB_TOKEN}"
+
+    return headers
+
+
+def load_from_gist():
+    if not GIST_ID:
+        return None
+
+    url = f"https://api.github.com/gists/{GIST_ID}"
+    req = urlrequest.Request(url, headers=_gist_headers())
+
+    try:
+        with urlrequest.urlopen(req, timeout=15) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+    except (URLError, HTTPError, OSError):
+        return None
+
+    files = data.get("files", {})
+    content = None
+
+    for fdata in files.values():
+        if fdata.get("filename") == GIST_FILENAME:
+            content = fdata.get("content")
+            break
+
+    if content is None and files:
+        content = next(iter(files.values())).get("content")
+
+    if content is None:
+        return None
+
+    try:
+        return json.loads(content)
+    except json.JSONDecodeError:
+        return None
+
+
+def save_to_gist(overrides):
+    if not GIST_ID or not GITHUB_TOKEN:
+        return False
+
+    content = json.dumps(overrides, ensure_ascii=False, indent=2)
+    payload = {
+        "files": {
+            GIST_FILENAME: {
+                "content": content,
+            }
+        }
+    }
+
+    url = f"https://api.github.com/gists/{GIST_ID}"
+    req = urlrequest.Request(
+        url,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            **_gist_headers(),
+            "Content-Type": "application/json",
+        },
+        method="PATCH",
+    )
+
+    try:
+        with urlrequest.urlopen(req, timeout=15) as resp:
+            return resp.status == 200
+    except (URLError, HTTPError, OSError):
+        return False
 
 
 def get_override(

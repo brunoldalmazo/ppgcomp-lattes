@@ -1,5 +1,8 @@
 import json
+import os
 from pathlib import Path
+from urllib import request as urlrequest
+from urllib.error import URLError, HTTPError
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -10,6 +13,10 @@ FLAGS_FILE = (
     / "output"
     / "publication_flags.json"
 )
+
+GIST_ID = os.getenv("GIST_ID", "")
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
+GIST_FILENAME = "publication_flags.json"
 
 
 def normalize_doi(doi):
@@ -70,6 +77,13 @@ def publication_key(publication):
 
 
 def load_flags():
+    # Tenta carregar do Gist primeiro
+    if GIST_ID:
+        gist_data = load_from_gist()
+        if gist_data is not None and isinstance(gist_data, dict):
+            return gist_data
+
+    # Fallback para arquivo local
     if not FLAGS_FILE.exists():
         return {}
 
@@ -95,6 +109,11 @@ def load_flags():
 
 
 def save_flags(flags):
+    # Tenta salvar no Gist primeiro
+    if GIST_ID:
+        save_to_gist(flags)
+
+    # Sempre mantém cópia local para fallback
     FLAGS_FILE.parent.mkdir(
         parents=True,
         exist_ok=True,
@@ -108,6 +127,82 @@ def save_flags(flags):
         ),
         encoding="utf-8",
     )
+
+
+def _gist_headers():
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "scraper-lattes",
+    }
+
+    if GITHUB_TOKEN:
+        headers["Authorization"] = f"Bearer {GITHUB_TOKEN}"
+
+    return headers
+
+
+def load_from_gist():
+    if not GIST_ID:
+        return None
+
+    url = f"https://api.github.com/gists/{GIST_ID}"
+    req = urlrequest.Request(url, headers=_gist_headers())
+
+    try:
+        with urlrequest.urlopen(req, timeout=15) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+    except (URLError, HTTPError, OSError):
+        return None
+
+    files = data.get("files", {})
+    content = None
+
+    for fdata in files.values():
+        if fdata.get("filename") == GIST_FILENAME:
+            content = fdata.get("content")
+            break
+
+    if content is None and files:
+        content = next(iter(files.values())).get("content")
+
+    if content is None:
+        return None
+
+    try:
+        return json.loads(content)
+    except json.JSONDecodeError:
+        return None
+
+
+def save_to_gist(flags):
+    if not GIST_ID or not GITHUB_TOKEN:
+        return False
+
+    content = json.dumps(flags, ensure_ascii=False, indent=2)
+    payload = {
+        "files": {
+            GIST_FILENAME: {
+                "content": content,
+            }
+        }
+    }
+
+    url = f"https://api.github.com/gists/{GIST_ID}"
+    req = urlrequest.Request(
+        url,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            **_gist_headers(),
+            "Content-Type": "application/json",
+        },
+        method="PATCH",
+    )
+
+    try:
+        with urlrequest.urlopen(req, timeout=15) as resp:
+            return resp.status == 200
+    except (URLError, HTTPError, OSError):
+        return False
 
 
 def get_student_manual_flag(
