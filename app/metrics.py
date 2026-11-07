@@ -197,6 +197,8 @@ def enrich_publication(
         qualis_fonte = ""
         qualis_periodo = ""
         qualis_matched_by = ""
+        qualis_fuzzy_score = None
+        qualis_fuzzy_candidates = []
 
     else:
         official_qualis = qualis_result.get("qualis")
@@ -207,7 +209,14 @@ def enrich_publication(
         qualis_issn = qualis_result.get("issn", "")
         qualis_fonte = qualis_result.get("fonte", "")
         qualis_periodo = qualis_result.get("periodo", "")
-        qualis_matched_by = qualis_result.get("matched_by", "")
+        qualis_matched_by = qualis_result.get("match_type", "")
+        qualis_fuzzy_score = qualis_result.get(
+            "fuzzy_score"
+        )
+        qualis_fuzzy_candidates = qualis_result.get(
+            "fuzzy_candidates",
+            [],
+        )
 
     # -------------------------------------------------
     # Overrides manuais
@@ -319,6 +328,8 @@ def enrich_publication(
             "qualis_fonte": qualis_fonte,
             "qualis_periodo": qualis_periodo,
             "qualis_matched_by": qualis_matched_by,
+            "qualis_fuzzy_score": qualis_fuzzy_score,
+            "qualis_fuzzy_candidates": qualis_fuzzy_candidates,
             "evaluated_professors": evaluated_coauthors,
             "evaluated_coauthor_count": evaluated_coauthor_count,
             "individual_points": individual_points,

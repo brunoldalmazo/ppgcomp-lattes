@@ -1,9 +1,17 @@
 import json
+import os
 import re
 import unicodedata
 from pathlib import Path
 
 import pandas as pd
+
+try:
+    from rapidfuzz import fuzz, process
+
+    RAPIDFUZZ_AVAILABLE = True
+except ImportError:
+    RAPIDFUZZ_AVAILABLE = False
 
 from app.config import WEIGHTS
 
@@ -12,6 +20,16 @@ QUALISCOMP_FILE = (
     Path(__file__).resolve().parent.parent
     / "input"
     / "qualiscomp_indice.json"
+)
+
+
+FUZZY_THRESHOLD = float(
+    os.getenv("FUZZY_THRESHOLD", "90")
+)
+
+
+FUZZY_MARGIN = float(
+    os.getenv("FUZZY_MARGIN", "3")
 )
 
 
@@ -264,6 +282,31 @@ def conference_title_tokens(value):
 
     tokens = normalized.split()
 
+    # Siglas não devem participar do match por subconjunto de tokens:
+    # "(ICSE)" em "International Conference on Software Engineering (ICSE)"
+    # fazia o título casar com "Software Engineering Education and Training
+    # of ICSE" só porque ambos contêm "icse". A sigla continua sendo tratada
+    # separadamente por extract_parenthetical_acronyms/extract_leading_acronym.
+    acronyms = set()
+
+    acronyms.update(
+        extract_parenthetical_acronyms(
+            value
+        )
+    )
+
+    acronyms.update(
+        extract_explicit_acronym(
+            value
+        )
+    )
+
+    acronyms.update(
+        extract_leading_acronym(
+            value
+        )
+    )
+
     stopwords = {
         "a",
         "an",
@@ -296,6 +339,7 @@ def conference_title_tokens(value):
         for token in tokens
         if len(token) >= 3
         and token not in stopwords
+        and token not in acronyms
     }
 
 
@@ -326,6 +370,7 @@ def _empty_qualis_dataframe():
             "fonte",
             "periodo",
             "siglas",
+            "sigla_principal",
             "issn_norm",
             "titulo_norm",
             "titulo_conference_norm",
@@ -396,6 +441,14 @@ def read_qualis_json(path):
             or ""
         ).strip().upper()
 
+        sigla_principal = str(
+            vehicle.get(
+                "g",
+                "",
+            )
+            or ""
+        ).strip()
+
         siglas = str(
             vehicle.get(
                 "a",
@@ -403,6 +456,13 @@ def read_qualis_json(path):
             )
             or ""
         ).strip()
+
+        if sigla_principal:
+            siglas = (
+                f"{sigla_principal} · {siglas}"
+                if siglas
+                else sigla_principal
+            )
 
         issns = vehicle.get(
             "s2",
@@ -447,6 +507,7 @@ def read_qualis_json(path):
                 "fonte": "QualisComp",
                 "periodo": snapshot,
                 "siglas": siglas,
+                "sigla_principal": sigla_principal,
             }
         )
 
@@ -526,6 +587,12 @@ def read_qualis_file(path):
             rename_map[column] = "fonte"
         elif column == "periodo":
             rename_map[column] = "periodo"
+        elif column in {
+            "sigla_principal",
+            "sigla",
+            "acronym",
+        }:
+            rename_map[column] = "sigla_principal"
 
     df = df.rename(
         columns=rename_map
@@ -548,6 +615,9 @@ def read_qualis_file(path):
 
     if "siglas" not in df.columns:
         df["siglas"] = ""
+
+    if "sigla_principal" not in df.columns:
+        df["sigla_principal"] = ""
 
     df["issn_norm"] = df["issn"].apply(
         normalize_issn
@@ -722,6 +792,7 @@ class QualisDB:
 
         self.conference_by_title = {}
         self.conference_by_identifier = {}
+        self.conference_by_primary_acronym = {}
 
         for _, row in (
             self.df_journals.iterrows()
@@ -763,6 +834,22 @@ class QualisDB:
                 self.conference_by_title[
                     title
                 ] = row
+
+            primary_acronym = compact_text(
+                row.get(
+                    "sigla_principal",
+                    "",
+                )
+                or ""
+            )
+
+            if primary_acronym:
+                self.conference_by_primary_acronym.setdefault(
+                    primary_acronym,
+                    [],
+                ).append(
+                    row
+                )
 
             identifiers = (
                 event_identifiers(
@@ -827,6 +914,7 @@ class QualisDB:
         self,
         row,
         match_type,
+        **extra,
     ):
         if row is None:
             return {
@@ -837,6 +925,7 @@ class QualisDB:
                 "issn": "",
                 "fonte": "",
                 "periodo": "",
+                **extra,
             }
 
         qualis = row[
@@ -852,6 +941,7 @@ class QualisDB:
                 "issn": row["issn"],
                 "fonte": row["fonte"],
                 "periodo": row["periodo"],
+                **extra,
             }
 
         return {
@@ -865,6 +955,7 @@ class QualisDB:
             "issn": row["issn"],
             "fonte": row["fonte"],
             "periodo": row["periodo"],
+            **extra,
         }
 
     def lookup_journal(
@@ -933,6 +1024,15 @@ class QualisDB:
                 "title_exact",
             )
 
+        query_acronyms = (
+            extract_parenthetical_acronyms(
+                title
+            )
+            | extract_leading_acronym(
+                title
+            )
+        )
+
         query_tokens = conference_title_tokens(
             title
         )
@@ -1000,6 +1100,70 @@ class QualisDB:
                         "title_tokens",
                     )
 
+                # Empate no match por tokens: usa a sigla principal
+                # para desempatar (ex.: ICSE -> International Conference
+                # on Software Engineering, não o workshop ICSE-SEET).
+                acronym_matches = [
+                    candidate
+                    for candidate
+                    in unique_matches.values()
+                    if compact_text(
+                        candidate.get(
+                            "sigla_principal",
+                            "",
+                        )
+                        or ""
+                    )
+                    in query_acronyms
+                ]
+
+                if len(acronym_matches) == 1:
+                    return self._result(
+                        acronym_matches[0],
+                        "title_tokens_acronym",
+                    )
+
+        # Consulta que é só sigla (ex.: "ICSE 2026", "AAAI 2026").
+        # Só aceita siglas com 4+ caracteres, que são menos ambíguas;
+        # siglas curtas como SAC/SMC podem significar eventos diferentes.
+        if not query_tokens:
+            for identifier in query_acronyms:
+                if len(identifier) < 4:
+                    continue
+
+                candidates = (
+                    self.conference_by_primary_acronym.get(
+                        identifier,
+                        [],
+                    )
+                )
+
+                if len(candidates) == 1:
+                    return self._result(
+                        candidates[0],
+                        "primary_acronym_exact",
+                    )
+
+        def acronym_candidate_is_compatible(
+            candidate,
+        ):
+            if not query_tokens:
+                return False
+
+            candidate_tokens = (
+                self.conference_tokens_by_title.get(
+                    candidate[
+                        "titulo_conference_norm"
+                    ],
+                    set(),
+                )
+            )
+
+            return bool(
+                query_tokens
+                & candidate_tokens
+            )
+
         identifiers = (
             extract_parenthetical_acronyms(
                 title
@@ -1014,7 +1178,12 @@ class QualisDB:
                 )
             )
 
-            if len(candidates) == 1:
+            if (
+                len(candidates) == 1
+                and acronym_candidate_is_compatible(
+                    candidates[0]
+                )
+            ):
                 return self._result(
                     candidates[0],
                     "acronym_exact",
@@ -1036,7 +1205,12 @@ class QualisDB:
                 )
             )
 
-            if len(candidates) == 1:
+            if (
+                len(candidates) == 1
+                and acronym_candidate_is_compatible(
+                    candidates[0]
+                )
+            ):
                 return self._result(
                     candidates[0],
                     "leading_acronym",
@@ -1064,9 +1238,98 @@ class QualisDB:
                 "title_partial",
             )
 
+        # Tenta fuzzy matching como último recurso antes de desistir
+        fuzzy_result = self._lookup_conference_fuzzy(
+            title,
+            title_norm,
+        )
+
+        if fuzzy_result is not None:
+            return fuzzy_result
+
         return self._result(
             None,
             "not_found",
+        )
+
+    def _lookup_conference_fuzzy(
+        self,
+        title,
+        title_norm,
+    ):
+        """
+        Busca correspondência aproximada (fuzzy) entre o título informado
+        e os títulos de conferências cadastrados no Qualis.
+
+        Usa fuzz.ratio (similaridade global), não WRatio: o WRatio dava
+        score 85.5 para títulos completamente diferentes só por causa de
+        uma palavra em comum (ex.: "workshop").
+
+        Só aplica automaticamente quando o melhor candidato passa do
+        FUZZY_THRESHOLD e tem margem >= FUZZY_MARGIN sobre o segundo
+        colocado. Caso contrário, devolve match_type "fuzzy_review" com
+        os candidatos para revisão manual, sem atribuir Qualis.
+        """
+
+        if not RAPIDFUZZ_AVAILABLE or not self.conference_by_title:
+            return None
+
+        choices = list(self.conference_by_title.keys())
+
+        results = process.extract(
+            title_norm,
+            choices,
+            scorer=fuzz.ratio,
+            limit=5,
+        )
+
+        candidates = []
+
+        for choice, score, _ in results:
+            candidate = self.conference_by_title[choice]
+            candidates.append({
+                "row": candidate,
+                "score": round(float(score), 2),
+                "matched_title": candidate["titulo"],
+            })
+
+        if not candidates:
+            return None
+
+        best = candidates[0]
+
+        if best["score"] < FUZZY_THRESHOLD:
+            return None
+
+        second_score = (
+            candidates[1]["score"]
+            if len(candidates) > 1
+            else 0.0
+        )
+
+        extra = {
+            "fuzzy_score": best["score"],
+            "fuzzy_candidates": [
+                {
+                    "titulo": c["matched_title"],
+                    "qualis": c["row"]["qualis_norm"],
+                    "score": c["score"],
+                }
+                for c in candidates
+            ],
+        }
+
+        if best["score"] - second_score < FUZZY_MARGIN:
+            return self._result(
+                None,
+                "fuzzy_review",
+                **extra,
+            )
+
+        return self._result(
+            best["row"],
+            "fuzzy",
+            **extra,
         )
 
     def lookup(
