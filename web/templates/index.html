@@ -348,9 +348,9 @@
 
         .progress {
             height: 100%;
-            background: linear-gradient(90deg, var(--primary), var(--success));
+            background: var(--primary);
             border-radius: 20px;
-            transition: width 0.5s ease;
+            transition: width 0.5s ease, background-color 0.3s ease;
         }
 
         .status {
@@ -955,6 +955,26 @@
         return diffDays > limitDays;
     }
 
+    // Cor sólida da barra: vermelho (0%) -> âmbar (50%) -> verde (100%+).
+    function progressColor(ratio) {
+        const clamped = Math.min(Math.max(ratio, 0), 1);
+        const stops = [
+            [220, 38, 38],   // vermelho
+            [245, 158, 11],  // âmbar
+            [22, 163, 74]    // verde
+        ];
+
+        const scaled = clamped * (stops.length - 1);
+        const index = Math.min(Math.floor(scaled), stops.length - 2);
+        const t = scaled - index;
+        const from = stops[index];
+        const to = stops[index + 1];
+        const channel = position =>
+            Math.round(from[position] + (to[position] - from[position]) * t);
+
+        return `rgb(${channel(0)}, ${channel(1)}, ${channel(2)})`;
+    }
+
     function renderTable(professors) {
         const search = searchInput.value.toLowerCase().trim();
         const status = statusFilter.value;
@@ -991,9 +1011,12 @@
                 ? " name-outdated"
                 : "";
 
-            const progress = minScore > 0
-                ? Math.min((professor.total / minScore) * 100, 100)
-                : 100;
+            const ratio = minScore > 0
+                ? Number(professor.total || 0) / minScore
+                : 1;
+
+            const progress = Math.min(Math.max(ratio, 0), 1) * 100;
+            const barColor = progressColor(ratio);
 
             const counts = professor.counts || {};
 
@@ -1016,7 +1039,10 @@
                         >${escapeHtml(professor.professor)}</strong>
 
                         <div class="progress-container">
-                            <div class="progress" style="width: ${progress}%"></div>
+                            <div
+                                class="progress"
+                                style="width: ${progress}%; background: ${barColor};"
+                            ></div>
                         </div>
                     </td>
 
