@@ -7,16 +7,80 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Avaliação PPGComp</title>
 
+    <script>
+        // Aplica o tema antes da pintura para evitar flash de tema errado.
+        (function () {
+            try {
+                var saved = localStorage.getItem("ppgcomp-theme");
+                var dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+                document.documentElement.dataset.theme = saved || (dark ? "dark" : "light");
+            } catch (e) {
+                document.documentElement.dataset.theme = "light";
+            }
+        })();
+    </script>
+
     <style>
         :root {
             --bg: #f5f7fb;
             --card: #ffffff;
+            --surface-2: #f9fafb;
+            --field-bg: #ffffff;
             --text: #1f2937;
             --muted: #6b7280;
             --border: #e5e7eb;
             --primary: #2563eb;
+            --primary-soft: #eef2ff;
+            --primary-strong: #3730a3;
             --success: #15803d;
+            --success-soft: #dcfce7;
             --danger: #b91c1c;
+            --danger-soft: #fee2e2;
+            --warning: #c2410c;
+            --warning-soft: #fff7ed;
+            --neutral-btn: #6b7280;
+            --header-bg: #111827;
+            --header-bg-2: #1f2937;
+            --header-text: #ffffff;
+            --header-muted: #d1d5db;
+            --th-text: #4b5563;
+            --progress-bg: #e5e7eb;
+            --overlay: rgba(17, 24, 39, 0.65);
+            --shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            --shadow-hover: 0 12px 26px rgba(0, 0, 0, 0.10);
+            --ring: rgba(37, 99, 235, 0.35);
+            color-scheme: light;
+        }
+
+        :root[data-theme="dark"] {
+            --bg: #0b1220;
+            --card: #131c2e;
+            --surface-2: #1a2438;
+            --field-bg: #0f1729;
+            --text: #e5e7eb;
+            --muted: #94a3b8;
+            --border: #263349;
+            --primary: #60a5fa;
+            --primary-soft: #1e293b;
+            --primary-strong: #93c5fd;
+            --success: #4ade80;
+            --success-soft: #14351f;
+            --danger: #f87171;
+            --danger-soft: #3a1717;
+            --warning: #fb923c;
+            --warning-soft: #3a2413;
+            --neutral-btn: #475569;
+            --header-bg: #060b14;
+            --header-bg-2: #111a2e;
+            --header-text: #f8fafc;
+            --header-muted: #94a3b8;
+            --th-text: #94a3b8;
+            --progress-bg: #263349;
+            --overlay: rgba(2, 6, 14, 0.75);
+            --shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+            --shadow-hover: 0 14px 30px rgba(0, 0, 0, 0.45);
+            --ring: rgba(96, 165, 250, 0.45);
+            color-scheme: dark;
         }
 
         * { box-sizing: border-box; }
@@ -26,16 +90,43 @@
             font-family: Arial, Helvetica, sans-serif;
             background: var(--bg);
             color: var(--text);
+            transition: background-color 0.25s ease, color 0.25s ease;
         }
 
         header {
-            background: #111827;
-            color: white;
+            background: linear-gradient(135deg, var(--header-bg), var(--header-bg-2));
+            color: var(--header-text);
             padding: 28px 40px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
         }
 
         header h1 { margin: 0 0 6px; font-size: 28px; }
-        header p { margin: 0; color: #d1d5db; }
+        header p { margin: 0; color: var(--header-muted); }
+
+        .theme-toggle {
+            flex: 0 0 auto;
+            width: 44px;
+            height: 44px;
+            padding: 0;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--header-text);
+            font-size: 19px;
+            line-height: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.2s ease, transform 0.2s ease;
+        }
+
+        .theme-toggle:hover {
+            background: rgba(255, 255, 255, 0.18);
+            transform: translateY(-1px);
+        }
 
         main {
             max-width: 1500px;
@@ -49,7 +140,8 @@
             border-radius: 12px;
             padding: 18px 20px;
             margin-bottom: 20px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            box-shadow: var(--shadow);
+            transition: box-shadow 0.18s ease;
         }
 
         .config-title { font-weight: bold; margin-bottom: 14px; }
@@ -127,11 +219,18 @@
             font-size: 14px;
             font-weight: bold;
             cursor: pointer;
+            transition: opacity 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
         }
 
         button:hover { opacity: 0.9; }
+        button:active { transform: translateY(1px); }
         button:disabled { opacity: 0.6; cursor: wait; }
         #exportExcelButton { background: var(--success); }
+
+        :focus-visible {
+            outline: 3px solid var(--ring);
+            outline-offset: 2px;
+        }
 
         .config-status {
             margin-top: 12px;
@@ -159,7 +258,15 @@
             border: 1px solid var(--border);
             border-radius: 12px;
             padding: 22px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            box-shadow: var(--shadow);
+            transition: transform 0.18s ease, box-shadow 0.18s ease,
+                border-color 0.18s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-hover);
+            border-color: var(--primary);
         }
 
         .card-title { color: var(--muted); font-size: 14px; margin-bottom: 8px; }
@@ -177,8 +284,16 @@
             padding: 11px 13px;
             border: 1px solid var(--border);
             border-radius: 8px;
-            background: white;
+            background: var(--field-bg);
+            color: var(--text);
             font-size: 14px;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        input:focus, select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--ring);
+            outline: none;
         }
 
         #search { flex: 1; min-width: 250px; }
@@ -188,7 +303,8 @@
             border: 1px solid var(--border);
             border-radius: 12px;
             overflow: hidden;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            box-shadow: var(--shadow);
+            transition: box-shadow 0.18s ease;
         }
 
         .table-wrapper { overflow-x: auto; }
@@ -207,15 +323,16 @@
         }
 
         th {
-            background: #f9fafb;
+            background: var(--surface-2);
             font-size: 12px;
-            color: #4b5563;
+            color: var(--th-text);
             text-transform: uppercase;
         }
 
         td { font-size: 13px; }
         th:nth-child(2), td:nth-child(2) { text-align: left; }
-        tbody tr:hover { background: #f9fafb; }
+        tbody tr { transition: background-color 0.15s ease; }
+        tbody tr:hover { background: var(--surface-2); }
 
         .rank { font-weight: bold; color: var(--muted); }
         .score { font-weight: bold; font-size: 14px; }
@@ -223,7 +340,7 @@
         .progress-container {
             width: 100px;
             height: 7px;
-            background: #e5e7eb;
+            background: var(--progress-bg);
             border-radius: 20px;
             overflow: hidden;
             margin-top: 6px;
@@ -231,8 +348,9 @@
 
         .progress {
             height: 100%;
-            background: var(--primary);
+            background: linear-gradient(90deg, var(--primary), var(--success));
             border-radius: 20px;
+            transition: width 0.5s ease;
         }
 
         .status {
@@ -243,8 +361,8 @@
             font-weight: bold;
         }
 
-        .status-ok { background: #dcfce7; color: var(--success); }
-        .status-no { background: #fee2e2; color: var(--danger); }
+        .status-ok { background: var(--success-soft); color: var(--success); }
+        .status-no { background: var(--danger-soft); color: var(--danger); }
 
         .professor-link {
             color: var(--primary);
@@ -273,14 +391,20 @@
             padding: 30px;
         }
 
+        footer a { color: var(--primary); }
+
+        .name-outdated { color: var(--danger); }
+        .professor-link.name-outdated { color: var(--danger); }
+
         .modal-overlay {
             display: none;
             position: fixed;
             inset: 0;
-            background: rgba(17, 24, 39, 0.65);
+            background: var(--overlay);
             z-index: 1000;
             padding: 30px;
             overflow-y: auto;
+            backdrop-filter: blur(2px);
         }
 
         .modal-overlay.open { display: block; }
@@ -290,13 +414,13 @@
             margin: 0 auto;
             background: var(--card);
             border-radius: 14px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+            box-shadow: var(--shadow-hover);
             overflow: hidden;
         }
 
         .modal-header {
-            background: #111827;
-            color: white;
+            background: linear-gradient(135deg, var(--header-bg), var(--header-bg-2));
+            color: var(--header-text);
             padding: 22px 26px;
             display: flex;
             justify-content: space-between;
@@ -305,7 +429,7 @@
         }
 
         .modal-header h2 { margin: 0 0 6px; font-size: 22px; }
-        .modal-header p { margin: 0; color: #d1d5db; font-size: 13px; }
+        .modal-header p { margin: 0; color: var(--header-muted); font-size: 13px; }
 
         .modal-close {
             background: transparent;
@@ -329,8 +453,11 @@
             border: 1px solid var(--border);
             border-radius: 10px;
             padding: 16px;
-            background: #f9fafb;
+            background: var(--surface-2);
+            transition: border-color 0.15s ease;
         }
+
+        .detail-card:hover { border-color: var(--primary); }
 
         .detail-card-title { color: var(--muted); font-size: 12px; margin-bottom: 7px; }
         .detail-card-value { font-size: 22px; font-weight: bold; }
@@ -364,18 +491,18 @@
             display: inline-block;
             padding: 4px 8px;
             border-radius: 6px;
-            background: #eef2ff;
-            color: #3730a3;
+            background: var(--primary-soft);
+            color: var(--primary-strong);
             font-weight: bold;
         }
 
-        .qualis-manual { background: #fff7ed; color: #c2410c; }
+        .qualis-manual { background: var(--warning-soft); color: var(--warning); }
 
         .qualis-missing {
             display: inline-block;
             padding: 4px 8px;
             border-radius: 6px;
-            background: #fee2e2;
+            background: var(--danger-soft);
             color: var(--danger);
             font-weight: bold;
         }
@@ -389,12 +516,12 @@
         }
 
         .qualis-edit { margin-top: 7px; }
-        .qualis-edit button { padding: 5px 8px; font-size: 11px; background: #6b7280; }
+        .qualis-edit button { padding: 5px 8px; font-size: 11px; background: var(--neutral-btn); }
 
         .qualis-editor {
             margin-top: 8px;
             padding: 10px;
-            background: #f9fafb;
+            background: var(--surface-2);
             border: 1px solid var(--border);
             border-radius: 8px;
             min-width: 230px;
@@ -425,7 +552,7 @@
         .qualis-editor-actions { display: flex; gap: 6px; flex-wrap: wrap; }
         .qualis-editor-actions button { padding: 6px 9px; font-size: 11px; }
         .qualis-save { background: var(--success) !important; }
-        .qualis-auto { background: #6b7280 !important; }
+        .qualis-auto { background: var(--neutral-btn) !important; }
 
         .doi-link { color: var(--primary); text-decoration: none; }
         .doi-link:hover { text-decoration: underline; }
@@ -488,16 +615,34 @@
             .student-qualis-filter { min-width: 0; }
             .student-qualis-options { gap: 14px; }
             button { width: 100%; }
+            .theme-toggle { width: 44px; }
             .modal-overlay { padding: 10px; }
             .modal-body { padding: 15px; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                transition-duration: 0.01ms !important;
+                animation-duration: 0.01ms !important;
+            }
         }
     </style>
 </head>
 
 <body>
 <header>
-    <h1>Avaliação PPGComp</h1>
-    <p id="periodDescription">Produção científica e coautorias</p>
+    <div>
+        <h1>Avaliação PPGComp</h1>
+        <p id="periodDescription">Produção científica e coautorias</p>
+    </div>
+
+    <button
+        type="button"
+        class="theme-toggle"
+        id="themeToggle"
+        aria-label="Alternar tema claro/escuro"
+        title="Alternar tema claro/escuro"
+    ></button>
 </header>
 
 <main>
@@ -699,6 +844,64 @@
     const detailSummary = document.getElementById("detailSummary");
     const publicationsContainer = document.getElementById("publicationsContainer");
     const modalClose = document.getElementById("modalClose");
+    const themeToggle = document.getElementById("themeToggle");
+
+    (function setupTheme() {
+        const storageKey = "ppgcomp-theme";
+        const systemTheme = window.matchMedia("(prefers-color-scheme: dark)");
+        const root = document.documentElement;
+
+        function currentTheme() {
+            return root.dataset.theme === "dark" ? "dark" : "light";
+        }
+
+        function updateToggle(theme) {
+            const goingDark = theme !== "dark";
+            themeToggle.textContent = goingDark ? "🌙" : "☀️";
+            themeToggle.setAttribute(
+                "aria-label",
+                goingDark ? "Ativar tema escuro" : "Ativar tema claro"
+            );
+            themeToggle.title = themeToggle.getAttribute("aria-label");
+        }
+
+        function applyTheme(theme, persist) {
+            root.dataset.theme = theme;
+            updateToggle(theme);
+
+            if (persist) {
+                try {
+                    localStorage.setItem(storageKey, theme);
+                } catch (error) {
+                    // Armazenamento indisponível: mantém apenas nesta sessão.
+                }
+            }
+        }
+
+        updateToggle(currentTheme());
+
+        themeToggle.addEventListener("click", () => {
+            applyTheme(currentTheme() === "dark" ? "light" : "dark", true);
+        });
+
+        function onSystemThemeChange(event) {
+            try {
+                if (localStorage.getItem(storageKey)) {
+                    return;
+                }
+            } catch (error) {
+                // Sem armazenamento: segue sempre o sistema.
+            }
+
+            applyTheme(event.matches ? "dark" : "light", false);
+        }
+
+        if (typeof systemTheme.addEventListener === "function") {
+            systemTheme.addEventListener("change", onSystemThemeChange);
+        } else if (typeof systemTheme.addListener === "function") {
+            systemTheme.addListener(onSystemThemeChange);
+        }
+    })();
 
     let currentProfessors = [];
     let currentEvaluation = null;
@@ -784,8 +987,8 @@
                 staleDays
             );
 
-            const nameStyle = outdated
-                ? ' style="color: #b91c1c;"'
+            const nameClass = outdated
+                ? " name-outdated"
                 : "";
 
             const progress = minScore > 0
@@ -807,8 +1010,7 @@
 
                     <td>
                         <strong
-                            class="professor-link"
-                            ${nameStyle}
+                            class="professor-link${nameClass}"
                             data-professor="${escapeAttribute(professor.professor)}"
                             title="Clique para ver o detalhamento"
                         >${escapeHtml(professor.professor)}</strong>
