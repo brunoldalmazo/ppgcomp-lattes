@@ -21,6 +21,77 @@ from app.students import (
 )
 
 
+# ---------------------------------------------------------
+# Produção técnica (patentes, software e desenho industrial)
+# ---------------------------------------------------------
+
+TECHNICAL_WEIGHTS = {
+    ("patent", "granted"): 1.00,
+    ("patent", "deposited"): 0.15,
+    ("software", "registered"): 0.05,
+    ("industrial_design", "registered"): 0.05,
+}
+
+
+def technical_category(item_type, status):
+    """
+    Nome da categoria de contagem para um item de produção técnica.
+    """
+
+    if item_type == "patent":
+        return f"patent_{status}"
+
+    if item_type == "software":
+        return "software_registered"
+
+    if item_type == "industrial_design":
+        return "industrial_design"
+
+    return None
+
+
+def technical_key(item):
+    """
+    Chave de deduplicação de um item de produção técnica.
+
+    Prioriza o número de registro normalizado (maiúsculas,
+    sem espaços); fallback: (tipo, ano, título normalizado).
+    Itens sem título usam o texto bruto para evitar que itens
+    distintos sejam considerados iguais.
+    """
+
+    registry = re.sub(
+        r"\s+",
+        "",
+        str(item.get("registry_number") or ""),
+    ).upper()
+
+    if registry:
+        return (
+            "registry",
+            registry,
+        )
+
+    title = normalize_title(
+        item.get("title")
+    )
+
+    if title:
+        return (
+            "title",
+            item.get("type"),
+            item.get("year"),
+            title,
+        )
+
+    return (
+        "raw",
+        " ".join(
+            str(item.get("raw") or "").split()
+        ),
+    )
+
+
 def normalize_title(title):
     return " ".join(
         str(title or "").strip().lower().split()
@@ -343,6 +414,259 @@ def enrich_publication(
     return enriched
 
 
+def build_technical_index(professor_technicals):
+    """
+    Constrói o índice chave -> professores que listam o item.
+    """
+
+    index = defaultdict(list)
+
+    for professor, items in professor_technicals.items():
+        for item in items:
+            key = technical_key(item)
+
+            if professor not in index[key]:
+                index[key].append(professor)
+
+    return index
+
+
+def _preferred_occurrence(current, candidate):
+    """
+    Escolhe a ocorrência mais informativa de um item
+    para o mesmo professor (D2: melhor status primeiro).
+    """
+
+    def rank(occurrence):
+        if occurrence.get("grant_date"):
+            return 2
+
+        if occurrence.get("status") == "granted":
+            return 1
+
+        if occurrence.get("status"):
+            return 0
+
+        return -1
+
+    return candidate if rank(candidate) > rank(current) else current
+
+
+def resolve_technical_items(professor_technicals):
+    """
+    Deduplica globalmente os itens de produção técnica e
+    aplica a decisão D2 (melhor status: concedida > depositada).
+
+    Retorna uma lista de entradas por item/professor, com os
+    pontos já divididos entre os professores avaliados (D1).
+    """
+
+    technical_index = build_technical_index(
+        professor_technicals
+    )
+
+    occurrences_by_key = defaultdict(list)
+
+    for professor, items in professor_technicals.items():
+        for item in items:
+            occurrences_by_key[
+                technical_key(item)
+            ].append(
+                (
+                    professor,
+                    item,
+                )
+            )
+
+    entries = []
+
+    for key in sorted(
+        occurrences_by_key,
+        key=lambda item: str(item),
+    ):
+        occurrences = occurrences_by_key[key]
+
+        representative = occurrences[0][1]
+
+        for _, occurrence in occurrences[1:]:
+            representative = _preferred_occurrence(
+                representative,
+                occurrence,
+            )
+
+        item_type = representative.get("type")
+
+        # -------------------------------------------------
+        # D2: a mesma patente conta uma vez, com o
+        # melhor status entre todas as ocorrências.
+        # -------------------------------------------------
+
+        status = representative.get("status")
+
+        if item_type == "patent":
+            has_grant = any(
+                occurrence.get("grant_date")
+                or occurrence.get("status") == "granted"
+                for _, occurrence in occurrences
+            )
+
+            status = (
+                "granted"
+                if has_grant
+                else "deposited"
+            )
+
+        # -------------------------------------------------
+        # Ano do evento (D3): concessão, se concedida;
+        # senão o ano da ocorrência representativa
+        # (depósito para patentes; registro para
+        # software e desenho industrial).
+        # -------------------------------------------------
+
+        year = representative.get("year")
+
+        if status == "granted":
+            for _, occurrence in occurrences:
+                grant_date = occurrence.get("grant_date")
+
+                if grant_date:
+                    try:
+                        year = int(grant_date[:4])
+                    except (TypeError, ValueError):
+                        pass
+                    break
+
+        professors_listing = sorted(
+            technical_index.get(key, [])
+        )
+
+        share_count = len(professors_listing)
+
+        if share_count == 0:
+            continue
+
+        item_points = TECHNICAL_WEIGHTS.get(
+            (
+                item_type,
+                status,
+            ),
+            0.0,
+        )
+
+        individual_points = (
+            item_points / share_count
+        )
+
+        for professor in professors_listing:
+
+            entry = {
+                "professor": professor,
+                "type": item_type,
+                "patent_kind": representative.get(
+                    "patent_kind"
+                ),
+                "status": status,
+                "title": representative.get("title"),
+                "year": year,
+                "authors": representative.get("authors"),
+                "country": representative.get("country"),
+                "registry_number": representative.get(
+                    "registry_number"
+                ),
+                "registry_institution": representative.get(
+                    "registry_institution"
+                ),
+                "deposit_date": representative.get(
+                    "deposit_date"
+                ),
+                "grant_date": representative.get(
+                    "grant_date"
+                ),
+                "points": individual_points,
+                "shared_with": [
+                    other
+                    for other in professors_listing
+                    if other != professor
+                ],
+            }
+
+            entries.append(entry)
+
+    return entries
+
+
+def evaluate_technical_production(
+    professor_data,
+    start_year=None,
+    end_year=None,
+):
+    """
+    Aplica o filtro de período (D3), a deduplicação por professor
+    e a resolução global (D2) sobre a produção técnica.
+
+    Retorna (entradas por item/professor, itens por professor).
+    """
+
+    professor_technicals = {}
+
+    for professor, data in professor_data.items():
+        items = data.get("technical_production") or []
+
+        if (
+            start_year is not None
+            and end_year is not None
+        ):
+            filtered = []
+
+            for item in items:
+                year = item.get("year")
+
+                if year is None:
+                    continue
+
+                if (
+                    start_year
+                    <= year
+                    <= end_year
+                ):
+                    filtered.append(item)
+
+            items = filtered
+
+        deduplicated = {}
+
+        for item in items:
+            key = technical_key(item)
+            current = deduplicated.get(key)
+
+            if current is None:
+                deduplicated[key] = item
+            else:
+                deduplicated[key] = (
+                    _preferred_occurrence(
+                        current,
+                        item,
+                    )
+                )
+
+        professor_technicals[professor] = list(
+            deduplicated.values()
+        )
+
+    entries = resolve_technical_items(
+        professor_technicals
+    )
+
+    technical_by_professor = defaultdict(list)
+
+    for entry in entries:
+        technical_by_professor[
+            entry["professor"]
+        ].append(entry)
+
+    return entries, dict(technical_by_professor)
+
+
 def evaluate_professors(
     lattes_data,
     qualis_db=None,
@@ -448,6 +772,14 @@ def evaluate_professors(
     coauthorships = defaultdict(list)
     pending = []
 
+    technical_entries, technical_by_professor = (
+        evaluate_technical_production(
+            professor_data,
+            start_year=start_year,
+            end_year=end_year,
+        )
+    )
+
     for professor in sorted(evaluated_professors):
         data = professor_data[professor]
         own_publications = professor_publications[professor]
@@ -465,6 +797,15 @@ def evaluate_professors(
         total = 0.0
         coauthored_count = 0
         student_author_count = 0
+
+        technical_counts = {
+            "patent_granted": 0,
+            "patent_deposited": 0,
+            "software_registered": 0,
+            "industrial_design": 0,
+        }
+
+        technical_points = 0.0
 
         for publication in own_publications:
             key = publication_key(publication)
@@ -509,6 +850,25 @@ def evaluate_professors(
                     }
                 )
 
+        # -------------------------------------------------
+        # Produção técnica (D1, D2, D3)
+        # -------------------------------------------------
+
+        for entry in technical_by_professor.get(
+            professor,
+            [],
+        ):
+            category = technical_category(
+                entry["type"],
+                entry["status"],
+            )
+
+            if category in technical_counts:
+                technical_counts[category] += 1
+
+            technical_points += entry["points"]
+            total += entry["points"]
+
         professors[professor] = {
             "professor": professor,
             "lattes_url": data.get("lattes_url"),
@@ -528,6 +888,8 @@ def evaluate_professors(
             ),
             "counts": counts,
             "points": points,
+            "technical_counts": technical_counts,
+            "technical_points": technical_points,
         }
 
     return {
@@ -537,6 +899,7 @@ def evaluate_professors(
         "student_qualis_filter": sorted(student_qualis_filter),
         "professors": professors,
         "publications": publications,
+        "technical_production": technical_entries,
         "coauthorships": dict(coauthorships),
         "pending": pending,
         "publication_index": dict(publication_index),

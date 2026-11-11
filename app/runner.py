@@ -231,15 +231,27 @@ def run_evaluation():
 
     professors = resultado["professors"]
 
+    total_points = 0.0
+    total_technical_points = 0.0
+
     for professor in sorted(professors):
         dados = professors[professor]
+
+        technical_points = dados.get(
+            "technical_points",
+            0.0,
+        )
+
+        total_points += dados["total"]
+        total_technical_points += technical_points
 
         print(
             f"{professor}: "
             f"{dados['total']:.4f} pontos | "
             f"{dados['status']} | "
             f"{dados['publications']} publicações | "
-            f"{dados['coauthored_publications']} coautorias"
+            f"{dados['coauthored_publications']} coautorias | "
+            f"técnica {technical_points:.4f}"
         )
 
     print()
@@ -248,7 +260,48 @@ def run_evaluation():
         f"{len(resultado['publications'])}"
     )
 
+    print(
+        f"Itens de produção técnica (por item/professor): "
+        f"{len(resultado.get('technical_production', []))}"
+    )
+
+    print(
+        f"Somatório dos pontos de produção técnica: "
+        f"{total_technical_points:.4f}"
+    )
+
     print(f"Pendências: {len(resultado['pending'])}")
+
+    print()
+    print("=" * 70)
+    print("CONFERÊNCIA DO TOTAL")
+    print("=" * 70)
+
+    publication_points = sum(
+        dados["points"][qualis]
+        for dados in professors.values()
+        for qualis in dados["points"]
+    )
+
+    print(
+        f"Publicações (Qualis): {publication_points:.4f}"
+    )
+    print(
+        f"Produção técnica:     {total_technical_points:.4f}"
+    )
+    print(f"Total:                {total_points:.4f}")
+
+    computed_total = publication_points + total_technical_points
+
+    if abs(computed_total - total_points) < 1e-6:
+        print(
+            "OK: total = publicações + produção técnica."
+        )
+    else:
+        print(
+            "ATENÇÃO: total não confere com a soma "
+            "de publicações e produção técnica."
+        )
 
     output_file = export_json(
         resultado=resultado,
@@ -258,7 +311,8 @@ def run_evaluation():
     )
 
     excel_file = export_excel(
-        resultado=resultado
+        resultado=resultado,
+        lattes_data=lattes_data,
     )
 
     print()

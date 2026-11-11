@@ -105,6 +105,10 @@ def export_json(
         "publications": resultado[
             "publications"
         ],
+        "technical_production": resultado.get(
+            "technical_production",
+            [],
+        ),
         "coauthorships": resultado[
             "coauthorships"
         ],
