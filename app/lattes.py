@@ -539,9 +539,17 @@ def extract_technical_production(soup):
     Usa o texto do cabeçalho (div.inst_back / div.cita-artigos)
     e coleta os div.layout-cell-11 irmãos seguintes até o próximo
     cabeçalho, na ordem do documento.
+
+    A plataforma Lattes renderiza cada bloco duas vezes no HTML
+    (headers e itens duplicados em containers gêmeos), então clones
+    exatos (texto raw idêntico) são descartados dentro do mesmo
+    currículo. Duplicatas entre CVs são mantidas: são elas que
+    alimentam a divisão de pontos entre professores (D1) e o merge
+    de status entre ocorrências (D2).
     """
 
     items = []
+    seen_raw = set()
 
     headers = soup.select(
         "div.inst_back, div.cita-artigos"
@@ -603,7 +611,8 @@ def extract_technical_production(soup):
                     header_text,
                 )
 
-                if parsed:
+                if parsed and raw not in seen_raw:
+                    seen_raw.add(raw)
                     items.append(parsed)
 
             sibling = sibling.find_next_sibling()
