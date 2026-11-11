@@ -364,6 +364,33 @@
         .status-ok { background: var(--success-soft); color: var(--success); }
         .status-no { background: var(--danger-soft); color: var(--danger); }
 
+        .technical-score { font-size: 14px; }
+
+        .tech-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+
+        .tech-badge-granted { background: var(--success-soft); color: var(--success); }
+        .tech-badge-deposited { background: var(--warning-soft); color: var(--warning); }
+        .tech-badge-registered { background: var(--primary-soft); color: var(--primary); }
+
+        .tech-shared {
+            color: var(--muted);
+            font-size: 12px;
+            white-space: normal;
+        }
+
+        .tech-registry {
+            font-size: 12px;
+            color: var(--muted);
+            white-space: nowrap;
+        }
+
         .professor-link {
             color: var(--primary);
             cursor: pointer;
@@ -463,6 +490,35 @@
         .detail-card-value { font-size: 22px; font-weight: bold; }
         .detail-section { margin-top: 24px; }
         .detail-section h3 { margin: 0 0 12px; font-size: 17px; }
+
+        .modal-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 14px;
+            flex-wrap: wrap;
+        }
+
+        .modal-tab {
+            padding: 7px 16px;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            background: var(--field-bg);
+            color: var(--muted);
+            font-size: 13px;
+            cursor: pointer;
+            transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+        }
+
+        .modal-tab:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .modal-tab.active {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: #ffffff;
+        }
 
         .publication-table-wrapper {
             overflow-x: auto;
@@ -777,6 +833,7 @@
                         <th>A2</th>
                         <th>A3</th>
                         <th>A4</th>
+                        <th>Produção técnica</th>
                         <th>Alunos</th>
                         <th>Total</th>
                         <th>Status</th>
@@ -785,7 +842,7 @@
 
                 <tbody id="professorsBody">
                     <tr>
-                        <td colspan="10" class="loading">Carregando avaliação...</td>
+                        <td colspan="11" class="loading">Carregando avaliação...</td>
                     </tr>
                 </tbody>
             </table>
@@ -808,8 +865,27 @@
             <div class="detail-summary" id="detailSummary"></div>
 
             <div class="detail-section">
-                <h3>Publicações do período</h3>
-                <div id="publicationsContainer"></div>
+                <div class="modal-tabs">
+                    <button
+                        type="button"
+                        class="modal-tab active"
+                        id="tabPublications"
+                    >Publicações</button>
+
+                    <button
+                        type="button"
+                        class="modal-tab"
+                        id="tabTechnical"
+                    >Produção técnica</button>
+                </div>
+
+                <div id="tabPanelPublications">
+                    <div id="publicationsContainer"></div>
+                </div>
+
+                <div id="tabPanelTechnical" hidden>
+                    <div id="technicalContainer"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -843,6 +919,24 @@
     const modalProfessorPeriod = document.getElementById("modalProfessorPeriod");
     const detailSummary = document.getElementById("detailSummary");
     const publicationsContainer = document.getElementById("publicationsContainer");
+    const technicalContainer = document.getElementById("technicalContainer");
+    const tabPublications = document.getElementById("tabPublications");
+    const tabTechnical = document.getElementById("tabTechnical");
+    const tabPanelPublications = document.getElementById("tabPanelPublications");
+    const tabPanelTechnical = document.getElementById("tabPanelTechnical");
+
+    function selectModalTab(tab) {
+        const isPublications = tab === "publications";
+
+        tabPublications.classList.toggle("active", isPublications);
+        tabTechnical.classList.toggle("active", !isPublications);
+
+        tabPanelPublications.hidden = !isPublications;
+        tabPanelTechnical.hidden = isPublications;
+    }
+
+    tabPublications.addEventListener("click", () => selectModalTab("publications"));
+    tabTechnical.addEventListener("click", () => selectModalTab("technical"));
     const modalClose = document.getElementById("modalClose");
     const themeToggle = document.getElementById("themeToggle");
 
@@ -993,7 +1087,7 @@
         if (!filtered.length) {
             professorsBody.innerHTML = `
                 <tr>
-                    <td colspan="10" class="empty">
+                    <td colspan="11" class="empty">
                         Nenhum professor encontrado.
                     </td>
                 </tr>
@@ -1051,6 +1145,7 @@
                     <td>${counts.A2 || 0}</td>
                     <td>${counts.A3 || 0}</td>
                     <td>${counts.A4 || 0}</td>
+                    <td class="technical-score">${Number(professor.technical_points || 0).toFixed(3)}</td>
                     <td>${professor.student_author_publications || 0}</td>
                     <td class="score">${Number(professor.total).toFixed(3)}</td>
                     <td>${statusHtml}</td>
@@ -1088,6 +1183,146 @@
         });
     }
 
+    function getProfessorTechnical(professorName) {
+        if (!currentEvaluation) {
+            return [];
+        }
+
+        const items = currentEvaluation.technical_production || [];
+
+        return items.filter(item => item.professor === professorName);
+    }
+
+    function technicalTypeLabel(type) {
+        const labels = {
+            patent: "Patente",
+            software: "Software",
+            industrial_design: "Desenho industrial",
+        };
+
+        return labels[type] || type || "-";
+    }
+
+    function technicalStatusClass(status) {
+        const classes = {
+            granted: "tech-badge tech-badge-granted",
+            deposited: "tech-badge tech-badge-deposited",
+            registered: "tech-badge tech-badge-registered",
+        };
+
+        return classes[status] || "tech-badge";
+    }
+
+    function technicalStatusLabel(status) {
+        const labels = {
+            granted: "Concedida",
+            deposited: "Depositada",
+            registered: "Registrado",
+        };
+
+        return labels[status] || status || "-";
+    }
+
+    function technicalOrder(item) {
+        const order = {
+            "patent|granted": 0,
+            "patent|deposited": 1,
+            "software|registered": 2,
+            "industrial_design|registered": 3,
+        };
+
+        return order[`${item.type}|${item.status}`] ?? 9;
+    }
+
+    function renderTechnicalSubtitle(professor) {
+        const counts = professor.technical_counts || {};
+
+        const parts = [
+            `${counts.patent_granted || 0} concedida(s)`,
+            `${counts.patent_deposited || 0} depositada(s)`,
+            `${counts.software_registered || 0} software`,
+            `${counts.industrial_design || 0} desenho industrial`,
+        ];
+
+        return parts.join(" · ");
+    }
+
+    function renderTechnicalProduction(items) {
+        if (!items.length) {
+            technicalContainer.innerHTML = `
+                <div class="detail-empty">
+                    Nenhuma produção técnica encontrada
+                    para este professor no período selecionado.
+                </div>
+            `;
+            return;
+        }
+
+        const rows = items
+            .slice()
+            .sort((a, b) => {
+                const byOrder = technicalOrder(a) - technicalOrder(b);
+
+                if (byOrder !== 0) {
+                    return byOrder;
+                }
+
+                return Number(b.year || 0) - Number(a.year || 0);
+            })
+            .map(item => {
+                const shared = (item.shared_with || []).join("; ");
+
+                return `
+                    <tr>
+                        <td>${escapeHtml(item.year || "-")}</td>
+
+                        <td class="publication-title">
+                            ${escapeHtml(item.title || "-")}
+                        </td>
+
+                        <td>${escapeHtml(technicalTypeLabel(item.type))}</td>
+
+                        <td>
+                            <span class="${technicalStatusClass(item.status)}">
+                                ${escapeHtml(technicalStatusLabel(item.status))}
+                            </span>
+                        </td>
+
+                        <td class="tech-registry">
+                            ${escapeHtml(item.registry_number || "-")}
+                        </td>
+
+                        <td>${Number(item.points || 0).toFixed(3)}</td>
+
+                        <td class="tech-shared">
+                            ${shared ? `com ${escapeHtml(shared)}` : "só no currículo"}
+                        </td>
+                    </tr>
+                `;
+            })
+            .join("");
+
+        technicalContainer.innerHTML = `
+            <div class="publication-table-wrapper">
+                <table class="publication-table">
+                    <thead>
+                        <tr>
+                            <th>Ano</th>
+                            <th>Título</th>
+                            <th>Tipo</th>
+                            <th>Status</th>
+                            <th>Nº registro</th>
+                            <th>Pontos</th>
+                            <th>Compartilhamento</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>${rows}</tbody>
+                </table>
+            </div>
+        `;
+    }
+
     function formatAuthors(authors) {
         if (!authors) {
             return "-";
@@ -1117,6 +1352,12 @@
             <div class="detail-card">
                 <div class="detail-card-title">Publicações</div>
                 <div class="detail-card-value">${professor.publications || 0}</div>
+            </div>
+
+            <div class="detail-card">
+                <div class="detail-card-title">Produção técnica</div>
+                <div class="detail-card-value">${Number(professor.technical_points || 0).toFixed(3)}</div>
+                <div class="card-subtitle">${renderTechnicalSubtitle(professor)}</div>
             </div>
 
             <div class="detail-card">
@@ -1640,6 +1881,14 @@
         const publications = getProfessorPublications(professorName);
         renderProfessorPublications(publications, professorName);
 
+        const technicalItems = getProfessorTechnical(professorName);
+        renderTechnicalProduction(technicalItems);
+
+        tabPublications.textContent = `Publicações (${publications.length})`;
+        tabTechnical.textContent = `Produção técnica (${technicalItems.length})`;
+
+        selectModalTab("publications");
+
         professorModal.classList.add("open");
         document.body.style.overflow = "hidden";
     }
@@ -1676,7 +1925,7 @@
 
         professorsBody.innerHTML = `
             <tr>
-                <td colspan="10" class="loading">Recalculando avaliação...</td>
+                <td colspan="11" class="loading">Recalculando avaliação...</td>
             </tr>
         `;
 
@@ -1729,7 +1978,7 @@
         } catch (error) {
             professorsBody.innerHTML = `
                 <tr>
-                    <td colspan="10" class="empty">
+                    <td colspan="11" class="empty">
                         Erro ao carregar avaliação: ${escapeHtml(error.message)}
                     </td>
                 </tr>

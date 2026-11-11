@@ -2,6 +2,28 @@
 
 Sistema de coleta, processamento e avaliação da produção científica do Programa de Pós-Graduação em Computação (PPGComp), a partir dos currículos Lattes de professores e alunos, considerando a classificação Qualis das publicações.
 
+Além das publicações (artigos e anais), o sistema coleta e pontua a
+**produção técnica** listada nos currículos Lattes:
+
+| Categoria | Pontuação |
+|---|---|
+| Patente de invenção ou modelo de utilidade **concedida** | 1,00 |
+| Patente de invenção ou modelo de utilidade **depositada** | 0,15 |
+| Programa de computador **registrado** | 0,05 |
+| Desenho industrial **registrado** | 0,05 |
+
+Regras:
+
+- Os pontos de um item são **divididos** entre os professores que o listam.
+- Cada patente conta **uma vez**, com o melhor status (concedida > depositada).
+- O filtro de período usa o **ano do evento**: concessão (se concedida), senão
+  depósito; para software e desenho industrial, o ano do registro.
+- Os pontos de produção técnica (`technical_points`) entram no `Total` do
+  professor, somados aos pontos de publicações (Qualis).
+- No Excel, a aba **"Produção Técnica"** lista um registro por item/professor,
+  com os pontos já divididos.
+
+
 ## Requisitos
 
 - Python 3

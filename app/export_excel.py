@@ -91,7 +91,7 @@ def add_sheet(
     return ws
 
 
-def export_excel(resultado):
+def export_excel(resultado, lattes_data=None):
     year_output_dir = (
         OUTPUT_DIR
         / str(REFERENCE_YEAR)
@@ -314,6 +314,83 @@ def export_excel(resultado):
         ],
         production_rows,
     )
+
+    # ============================================================
+    # PRODUÇÃO TÉCNICA
+    # ============================================================
+
+    technical_type_labels = {
+        "patent": "Patente",
+        "software": "Software",
+        "industrial_design": "Desenho industrial",
+    }
+
+    technical_kind_labels = {
+        "invention": "Invenção",
+        "utility_model": "Modelo de utilidade",
+    }
+
+    technical_status_labels = {
+        "granted": "Concedida",
+        "deposited": "Depositada",
+        "registered": "Registrado",
+    }
+
+    technical_entries = resultado.get(
+        "technical_production"
+    ) or []
+
+    technical_rows = []
+
+    for entry in technical_entries:
+        technical_rows.append([
+            entry.get("professor", ""),
+            technical_type_labels.get(
+                entry.get("type"),
+                entry.get("type", ""),
+            ),
+            technical_kind_labels.get(
+                entry.get("patent_kind"),
+                "",
+            ),
+            technical_status_labels.get(
+                entry.get("status"),
+                entry.get("status", ""),
+            ),
+            entry.get("title") or "",
+            entry.get("year") or "",
+            entry.get("registry_number") or "",
+            entry.get("registry_institution") or "",
+            entry.get("deposit_date") or "",
+            entry.get("grant_date") or "",
+            entry.get("points", 0),
+        ])
+
+    technical_sheet = add_sheet(
+        wb,
+        "Produção Técnica",
+        [
+            "Professor",
+            "Tipo",
+            "Subtipo",
+            "Status",
+            "Título",
+            "Ano",
+            "Nº Registro",
+            "Instituição",
+            "Data depósito",
+            "Data concessão",
+            "Pontos",
+        ],
+        technical_rows,
+    )
+
+    points_column = technical_sheet[
+        "K"
+    ]
+
+    for cell in points_column[1:]:
+        cell.number_format = "0.000"
 
     # ============================================================
     # COAUTORIA - DETALHAMENTO
